@@ -64,20 +64,24 @@ export default function App() {
       const appMain = document.querySelector(".app-main");
       const nav = document.querySelector(".nav");
       const activeScreen = document.querySelector(".screen.enter");
+      const enterScreens = document.querySelectorAll(".screen.enter");
 
       const appRect = appShell?.getBoundingClientRect();
       const mainRect = appMain?.getBoundingClientRect();
       const navRect = nav?.getBoundingClientRect();
       const screenRect = activeScreen?.getBoundingClientRect();
 
+      const appStyle = appShell ? window.getComputedStyle(appShell) : null;
       const navStyle = nav ? window.getComputedStyle(nav) : null;
       const mainStyle = appMain ? window.getComputedStyle(appMain) : null;
+      const screenStyle = activeScreen ? window.getComputedStyle(activeScreen) : null;
 
       setVpStats({
         reason,
         t: new Date().toLocaleTimeString("ko-KR", { hour12: false }),
         innerW: Math.round(window.innerWidth),
         innerH: Math.round(window.innerHeight),
+        scrollY: Math.round(window.scrollY || 0),
         docH: Math.round(document.documentElement.clientHeight),
         bodyH: Math.round(document.body.clientHeight),
         vvH: Math.round(vv?.height || window.innerHeight),
@@ -85,8 +89,14 @@ export default function App() {
         appTop: appRect ? Math.round(appRect.top) : null,
         appBottom: appRect ? Math.round(appRect.bottom) : null,
         appH: appRect ? Math.round(appRect.height) : null,
+        appPos: appStyle?.position || null,
+        appTopCss: appStyle?.top || null,
+        appTf: appStyle?.transform || null,
         mainTop: mainRect ? Math.round(mainRect.top) : null,
         mainBottom: mainRect ? Math.round(mainRect.bottom) : null,
+        mainPos: mainStyle?.position || null,
+        mainTopCss: mainStyle?.top || null,
+        mainTf: mainStyle?.transform || null,
         mainPadT: mainStyle?.paddingTop || null,
         mainPadB: mainStyle?.paddingBottom || null,
         navTop: navRect ? Math.round(navRect.top) : null,
@@ -98,6 +108,11 @@ export default function App() {
         scTop: screenRect ? Math.round(screenRect.top) : null,
         scBottom: screenRect ? Math.round(screenRect.bottom) : null,
         scH: screenRect ? Math.round(screenRect.height) : null,
+        scCount: enterScreens.length,
+        scCls: activeScreen?.className || null,
+        scPos: screenStyle?.position || null,
+        scBottomCss: screenStyle?.bottom || null,
+        scTf: screenStyle?.transform || null,
         scScrollTop: activeScreen?.scrollTop ?? null,
         scClientH: activeScreen?.clientHeight ?? null,
         scScrollH: activeScreen?.scrollHeight ?? null,
@@ -201,13 +216,16 @@ export default function App() {
           pointerEvents: "auto",
         }} onClick={() => setFreezeDebug((v) => !v)}>
 {`[tap: ${freezeDebug ? "resume" : "freeze"}] ${vpStats.t} ${vpStats.reason}
-vw:${vpStats.innerW} vh:${vpStats.innerH} doc:${vpStats.docH} body:${vpStats.bodyH}
+vw:${vpStats.innerW} vh:${vpStats.innerH} y:${vpStats.scrollY} doc:${vpStats.docH} body:${vpStats.bodyH}
 vvH:${vpStats.vvH} vvTop:${vpStats.vvTop}
 app:${vpStats.appTop}~${vpStats.appBottom} h:${vpStats.appH}
+appCss:${vpStats.appPos} top:${vpStats.appTopCss} tf:${vpStats.appTf}
 main:${vpStats.mainTop}~${vpStats.mainBottom} pt:${vpStats.mainPadT} pb:${vpStats.mainPadB}
+mainCss:${vpStats.mainPos} top:${vpStats.mainTopCss} tf:${vpStats.mainTf}
 nav:${vpStats.navTop}~${vpStats.navBottom} h:${vpStats.navH}
 navCss:${vpStats.navPos} bottom:${vpStats.navBottomCss} tf:${vpStats.navTf}
-scr:${vpStats.scTop}~${vpStats.scBottom} h:${vpStats.scH}
+scr:${vpStats.scTop}~${vpStats.scBottom} h:${vpStats.scH} cnt:${vpStats.scCount}
+scrCss:${vpStats.scPos} bottom:${vpStats.scBottomCss} tf:${vpStats.scTf}
 scroll:${vpStats.scScrollTop}/${vpStats.scClientH}/${vpStats.scScrollH}`}
         </div>
       )}
