@@ -50,27 +50,21 @@ export default function App() {
     return params.get("debugViewport") === "1";
   }, []);
 
-  // Mobile viewport sync (Chrome/Firefox Android URL bar show/hide)
+  // Debug metrics only (layout no longer depends on JS viewport vars)
   useEffect(() => {
-    const setViewportVars = () => {
+    if (!debugViewport) return;
+
+    const collectStats = () => {
       const vv = window.visualViewport;
-      const height = Math.round(vv?.height || window.innerHeight);
-      const offsetTop = Math.round(vv?.offsetTop || 0);
-      const innerHeight = Math.round(window.innerHeight);
-
-      document.documentElement.style.setProperty("--app-vh", `${height}px`);
-      document.documentElement.style.setProperty("--app-top", `${offsetTop}px`);
-
-      if (!debugViewport) return;
       const appShell = document.querySelector(".app-shell");
       const nav = document.querySelector(".nav");
       const appRect = appShell?.getBoundingClientRect();
       const navRect = nav?.getBoundingClientRect();
 
       setVpStats({
-        innerHeight,
-        vvHeight: height,
-        vvTop: offsetTop,
+        innerHeight: Math.round(window.innerHeight),
+        vvHeight: Math.round(vv?.height || window.innerHeight),
+        vvTop: Math.round(vv?.offsetTop || 0),
         appTop: appRect ? Math.round(appRect.top) : null,
         appBottom: appRect ? Math.round(appRect.bottom) : null,
         navTop: navRect ? Math.round(navRect.top) : null,
@@ -80,17 +74,17 @@ export default function App() {
       });
     };
 
-    setViewportVars();
-    window.addEventListener("resize", setViewportVars);
-    window.addEventListener("orientationchange", setViewportVars);
-    window.visualViewport?.addEventListener("resize", setViewportVars);
-    window.visualViewport?.addEventListener("scroll", setViewportVars);
+    collectStats();
+    window.addEventListener("resize", collectStats);
+    window.addEventListener("orientationchange", collectStats);
+    window.visualViewport?.addEventListener("resize", collectStats);
+    window.visualViewport?.addEventListener("scroll", collectStats);
 
     return () => {
-      window.removeEventListener("resize", setViewportVars);
-      window.removeEventListener("orientationchange", setViewportVars);
-      window.visualViewport?.removeEventListener("resize", setViewportVars);
-      window.visualViewport?.removeEventListener("scroll", setViewportVars);
+      window.removeEventListener("resize", collectStats);
+      window.removeEventListener("orientationchange", collectStats);
+      window.visualViewport?.removeEventListener("resize", collectStats);
+      window.visualViewport?.removeEventListener("scroll", collectStats);
     };
   }, [debugViewport]);
 

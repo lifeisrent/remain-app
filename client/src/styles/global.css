@@ -10,9 +10,6 @@
 }
 
 :root {
-  --app-vh: 100vh;
-  --app-top: 0px;
-
   /* Colors */
   --night: #09071a;
   --deep: #100d22;
@@ -65,13 +62,11 @@ body {
 }
 
 /* ─── App Shell ────────────────────────── */
-/* Mobile-first: fill the visual viewport exactly */
+/* Mobile-first: pin to full viewport box */
 .app-shell {
-  width: 100vw;
-  height: var(--app-vh);
   position: fixed;
-  top: var(--app-top);
-  left: 0;
+  inset: 0;
+  width: 100vw;
   overflow: hidden;
   background: var(--night);
 }
@@ -85,7 +80,7 @@ body {
 
   .app-shell {
     position: relative;
-    top: 0;
+    inset: auto;
     width: 390px;
     height: 844px;
   }
