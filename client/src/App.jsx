@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Onboarding from "./components/Onboarding";
 import HomeTab from "./components/HomeTab";
 import WriteFlow from "./components/WriteFlow";
@@ -9,6 +9,7 @@ import { HomeIcon, WriteIcon, ChatIcon, ArchiveIcon, StarIcon } from "./componen
 import { SOULS, STARS, QUESTIONS } from "./utils/constants";
 import { saveToNotion } from "./utils/api";
 import Store from "./utils/storage";
+import { formatDateKey, getNotifyTimeValue, isWithinNotifyWindow } from "./utils/time";
 
 function NavItem({ icon, label, on, onClick }) {
   return (
@@ -27,6 +28,7 @@ export default function App() {
   const [writeStep, setWriteStep] = useState("card");
   const [qIdx, setQIdx] = useState(0);
   const [toast, setToast] = useState(null);
+  const [notifyState, setNotifyState] = useState({ shouldPrompt: false, lastCheckAt: null, todayTarget: null, alreadyShown: false });
 
   // Load persisted data on mount
   useEffect(() => {
@@ -44,6 +46,64 @@ export default function App() {
     })();
   }, []);
 
+
+  const debugNotify = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("debugNotify") === "1" || params.get("debugnotify") === "1";
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "main") return;
+
+    let mounted = true;
+
+    const checkNotify = async () => {
+      if (!mounted) return;
+      const now = new Date();
+      const dateKey = formatDateKey(now);
+      const notifyId = user?.notifyTime;
+      const hhmm = getNotifyTimeValue(notifyId);
+      const storageKey = `remain:notify:lastShown:${dateKey}`;
+      const alreadyShown = !!(await Store.get(storageKey));
+      const shouldPrompt = !alreadyShown && !!hhmm && isWithinNotifyWindow(now, hhmm, 5);
+
+      if (!mounted) return;
+      setNotifyState({
+        shouldPrompt,
+        lastCheckAt: now.toISOString(),
+        todayTarget: hhmm,
+        alreadyShown,
+      });
+    };
+
+    checkNotify();
+    const timer = window.setInterval(checkNotify, 60000);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") checkNotify();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [phase, user?.notifyTime]);
+
+  const handleSnoozeNotify = async () => {
+    const dateKey = formatDateKey(new Date());
+    await Store.set(`remain:notify:lastShown:${dateKey}`, { at: new Date().toISOString(), action: "later" });
+    setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: true }));
+  };
+
+  const handleWriteFromNotify = async () => {
+    const dateKey = formatDateKey(new Date());
+    await Store.set(`remain:notify:lastShown:${dateKey}`, { at: new Date().toISOString(), action: "write" });
+    setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: true }));
+    setTab("write");
+    setWriteStep("card");
+  };
 
   const showToast = (msg, dur = 3200) => {
     setToast({ msg, hiding: false });
@@ -94,6 +154,12 @@ export default function App() {
       {/* Toast */}
       {toast && <div className={`toast ${toast.hiding ? "hide" : ""}`}>{toast.msg}</div>}
 
+      {debugNotify && (
+        <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2400, background: "rgba(0,0,0,.72)", color: "#8CFF9E", border: "1px solid rgba(140,255,158,.35)", borderRadius: 8, padding: "8px 10px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.35 }}>
+{`debugNotify\nnotifyId:${user?.notifyTime || "-"}\ntarget:${notifyState.todayTarget || "-"}\nlast:${notifyState.lastCheckAt ? new Date(notifyState.lastCheckAt).toLocaleTimeString("ko-KR") : "-"}\nshown:${String(notifyState.alreadyShown)}\nprompt:${String(notifyState.shouldPrompt)}`}
+        </div>
+      )}
+
       {phase === "onboarding" ? (
         <div className="app-main app-main--full">
           <Onboarding onDone={finishOnboarding} />
@@ -108,7 +174,11 @@ export default function App() {
           {/* Screens */}
           <div className={`app-main ${showNav ? "" : "app-main--full"}`}>
             <HomeTab active={tab === "home"} user={user} soul={soul} memories={memories}
-              onWrite={() => { setTab("write"); setWriteStep("card"); }} onChat={() => setTab("chat")} />
+              notifyState={notifyState}
+              onSnoozeNotify={handleSnoozeNotify}
+              onNotifyWrite={handleWriteFromNotify}
+              onWrite={() => { setTab("write"); setWriteStep("card"); }}
+              onChat={() => setTab("chat")} />
             <WriteFlow active={tab === "write"} step={writeStep} setStep={setWriteStep}
               q={q} qIdx={qIdx} setQIdx={setQIdx} soul={soul} saveMemory={saveMemory}
               onBack={() => { setWriteStep("card"); setTab("home"); }} />

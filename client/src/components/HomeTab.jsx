@@ -1,7 +1,7 @@
 import Soul from "./Soul";
 import { SOULS, QUESTIONS } from "../utils/constants";
 
-export default function HomeTab({ active, user, soul, memories, onWrite, onChat }) {
+export default function HomeTab({ active, user, soul, memories, onWrite, onChat, notifyState, onSnoozeNotify, onNotifyWrite }) {
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
   const days = ["월", "화", "수", "목", "금", "토", "일"];
   const td = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
@@ -50,6 +50,17 @@ export default function HomeTab({ active, user, soul, memories, onWrite, onChat 
             );
           })}
         </div>
+
+        {notifyState?.shouldPrompt && (
+          <div className="card-dark" style={{ padding: "16px 16px", marginBottom: 14, border: `1px solid ${soul.color}66`, background: "linear-gradient(135deg, rgba(27,74,239,.12), rgba(27,74,239,.05))" }}>
+            <div style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 8 }}>기록 리마인드</div>
+            <div style={{ fontFamily: "var(--f-d)", fontSize: 20, color: "white", lineHeight: 1.35, marginBottom: 12 }}>오늘의 이야기를 나누어볼까요?</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-white" style={{ flex: 1, padding: "11px 14px", fontSize: 14 }} onClick={onNotifyWrite}>지금 기록하기</button>
+              <button className="btn btn-ghost" style={{ flex: 1, padding: "11px 14px", fontSize: 14 }} onClick={onSnoozeNotify}>나중에</button>
+            </div>
+          </div>
+        )}
 
         {/* Today Q */}
         <div className="card-dark" style={{ padding: "24px 22px", marginBottom: 14, position: "relative", overflow: "hidden", cursor: "pointer" }} onClick={onWrite}>
