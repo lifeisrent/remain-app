@@ -48,45 +48,85 @@ export default function App() {
 
   const debugViewport = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("debugViewport") === "1";
+    return params.get("debugViewport") === "1" || params.get("debugLayout") === "1";
   }, []);
 
   // Debug metrics only (layout no longer depends on JS viewport vars)
   useEffect(() => {
     if (!debugViewport) return;
 
-    const collectStats = () => {
+    document.documentElement.setAttribute("data-debug-layout", "1");
+
+    const collectStats = (reason = "tick") => {
       if (freezeDebug) return;
       const vv = window.visualViewport;
       const appShell = document.querySelector(".app-shell");
+      const appMain = document.querySelector(".app-main");
       const nav = document.querySelector(".nav");
+      const activeScreen = document.querySelector(".screen.enter");
+
       const appRect = appShell?.getBoundingClientRect();
+      const mainRect = appMain?.getBoundingClientRect();
       const navRect = nav?.getBoundingClientRect();
+      const screenRect = activeScreen?.getBoundingClientRect();
+
+      const navStyle = nav ? window.getComputedStyle(nav) : null;
+      const mainStyle = appMain ? window.getComputedStyle(appMain) : null;
 
       setVpStats({
-        innerHeight: Math.round(window.innerHeight),
-        vvHeight: Math.round(vv?.height || window.innerHeight),
+        reason,
+        t: new Date().toLocaleTimeString("ko-KR", { hour12: false }),
+        innerW: Math.round(window.innerWidth),
+        innerH: Math.round(window.innerHeight),
+        docH: Math.round(document.documentElement.clientHeight),
+        bodyH: Math.round(document.body.clientHeight),
+        vvH: Math.round(vv?.height || window.innerHeight),
         vvTop: Math.round(vv?.offsetTop || 0),
         appTop: appRect ? Math.round(appRect.top) : null,
         appBottom: appRect ? Math.round(appRect.bottom) : null,
+        appH: appRect ? Math.round(appRect.height) : null,
+        mainTop: mainRect ? Math.round(mainRect.top) : null,
+        mainBottom: mainRect ? Math.round(mainRect.bottom) : null,
+        mainPadT: mainStyle?.paddingTop || null,
+        mainPadB: mainStyle?.paddingBottom || null,
         navTop: navRect ? Math.round(navRect.top) : null,
         navBottom: navRect ? Math.round(navRect.bottom) : null,
-        navHeight: navRect ? Math.round(navRect.height) : null,
-        screenH: window.screen?.height || null,
+        navH: navRect ? Math.round(navRect.height) : null,
+        navPos: navStyle?.position || null,
+        navBottomCss: navStyle?.bottom || null,
+        navTf: navStyle?.transform || null,
+        scTop: screenRect ? Math.round(screenRect.top) : null,
+        scBottom: screenRect ? Math.round(screenRect.bottom) : null,
+        scH: screenRect ? Math.round(screenRect.height) : null,
+        scScrollTop: activeScreen?.scrollTop ?? null,
+        scClientH: activeScreen?.clientHeight ?? null,
+        scScrollH: activeScreen?.scrollHeight ?? null,
       });
     };
 
-    collectStats();
-    window.addEventListener("resize", collectStats);
-    window.addEventListener("orientationchange", collectStats);
-    window.visualViewport?.addEventListener("resize", collectStats);
-    window.visualViewport?.addEventListener("scroll", collectStats);
+    const onResize = () => collectStats("resize");
+    const onRotate = () => collectStats("orientation");
+    const onVVResize = () => collectStats("vv-resize");
+    const onVVScroll = () => collectStats("vv-scroll");
+    const onScroll = () => collectStats("screen-scroll");
+
+    collectStats("init");
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onRotate);
+    window.visualViewport?.addEventListener("resize", onVVResize);
+    window.visualViewport?.addEventListener("scroll", onVVScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    const timer = window.setInterval(() => collectStats("interval"), 800);
 
     return () => {
-      window.removeEventListener("resize", collectStats);
-      window.removeEventListener("orientationchange", collectStats);
-      window.visualViewport?.removeEventListener("resize", collectStats);
-      window.visualViewport?.removeEventListener("scroll", collectStats);
+      window.clearInterval(timer);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onRotate);
+      window.visualViewport?.removeEventListener("resize", onVVResize);
+      window.visualViewport?.removeEventListener("scroll", onVVScroll);
+      window.removeEventListener("scroll", onScroll);
+      document.documentElement.removeAttribute("data-debug-layout");
     };
   }, [debugViewport, freezeDebug]);
 
@@ -160,12 +200,15 @@ export default function App() {
           width: "min(82vw, 320px)",
           pointerEvents: "auto",
         }} onClick={() => setFreezeDebug((v) => !v)}>
-{`[tap: ${freezeDebug ? "resume" : "freeze"}]
-inner:${vpStats.innerHeight}
-vvH:${vpStats.vvHeight} vvTop:${vpStats.vvTop}
-app:${vpStats.appTop}~${vpStats.appBottom}
-nav:${vpStats.navTop}~${vpStats.navBottom} h:${vpStats.navHeight}
-screen:${vpStats.screenH}`}
+{`[tap: ${freezeDebug ? "resume" : "freeze"}] ${vpStats.t} ${vpStats.reason}
+vw:${vpStats.innerW} vh:${vpStats.innerH} doc:${vpStats.docH} body:${vpStats.bodyH}
+vvH:${vpStats.vvH} vvTop:${vpStats.vvTop}
+app:${vpStats.appTop}~${vpStats.appBottom} h:${vpStats.appH}
+main:${vpStats.mainTop}~${vpStats.mainBottom} pt:${vpStats.mainPadT} pb:${vpStats.mainPadB}
+nav:${vpStats.navTop}~${vpStats.navBottom} h:${vpStats.navH}
+navCss:${vpStats.navPos} bottom:${vpStats.navBottomCss} tf:${vpStats.navTf}
+scr:${vpStats.scTop}~${vpStats.scBottom} h:${vpStats.scH}
+scroll:${vpStats.scScrollTop}/${vpStats.scClientH}/${vpStats.scScrollH}`}
         </div>
       )}
 
