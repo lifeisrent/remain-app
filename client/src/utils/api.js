@@ -18,6 +18,22 @@ const MODES_CTX = [
 
 const BASE = "/api";
 
+export async function transcribeAudio(blob, { language = "ko", fileName = "recording.webm" } = {}) {
+  const form = new FormData();
+  form.append("audio", blob, fileName);
+  form.append("language", language);
+
+  const res = await fetch(`${BASE}/transcribe`, {
+    method: "POST",
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
 async function callProxy(body) {
   const res = await fetch(`${BASE}/chat`, {
     method: "POST",

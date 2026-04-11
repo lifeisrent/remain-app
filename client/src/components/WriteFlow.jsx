@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Soul from "./Soul";
 import { QUESTIONS, SENSE_COLORS, TIMES } from "../utils/constants";
+import { transcribeAudio } from "../utils/api";
 
 export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, soul, saveMemory, user, onUpdateNotifyTime, onSetNotifyAfterSeconds, onBack }) {
   if (!active) return null;
@@ -114,12 +115,28 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   const [rec, setRec] = useState(false);
   const [media, setMedia] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [audioState, setAudioState] = useState("idle"); // idle | recording | ready | uploading | transcribing | error
+  const [audioErr, setAudioErr] = useState("");
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioSec, setAudioSec] = useState(0);
   const ref = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const streamRef = useRef(null);
+  const timerRef = useRef(null);
+  const maxSec = 220;
+  const debugAudio = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debugAudio") === "1";
   const depth = depthInfo(text.length, senses);
 
   useEffect(() => {
     if (active) setTimeout(() => ref.current?.focus(), 600);
-    else { setText(""); setSenses([]); setHintOn(false); setHintIdx(0); setMedia([]); setRec(false); setSaving(false); }
+    else {
+      setText(""); setSenses([]); setHintOn(false); setHintIdx(0); setMedia([]); setRec(false); setSaving(false);
+      setAudioState("idle"); setAudioErr(""); setAudioBlob(null); setAudioSec(0);
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
+      if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    }
   }, [active]);
 
   useEffect(() => {
@@ -131,9 +148,90 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
 
   const nextHint = () => { setHintOn(false); setTimeout(() => { setHintIdx((i) => (i + 1) % q.hints.length); setHintOn(true); }, 280); };
   const toggleS = (s) => setSenses((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
+  const startVoiceRecord = async () => {
+    try {
+      setAudioErr("");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mr;
+      audioChunksRef.current = [];
+      setAudioSec(0);
+      setAudioState("recording");
+      setRec(true);
+      setMedia((p) => (p.includes("voice") ? p : [...p, "voice"]));
+
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mr.onstop = () => {
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        setRec(false);
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        if (blob.size > 0) {
+          setAudioBlob(blob);
+          setAudioState("ready");
+        } else {
+          setAudioState("idle");
+        }
+      };
+
+      mr.start();
+      timerRef.current = setInterval(() => {
+        setAudioSec((s) => {
+          const next = s + 1;
+          if (next >= maxSec) {
+            try { mr.stop(); } catch {}
+            return maxSec;
+          }
+          return next;
+        });
+      }, 1000);
+    } catch (err) {
+      setAudioErr("마이크 권한을 확인해 주세요.");
+      setAudioState("error");
+      setRec(false);
+    }
+  };
+
+  const stopVoiceRecord = () => {
+    try {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+    } catch {}
+  };
+
+  const runTranscribe = async () => {
+    if (!audioBlob) return;
+    try {
+      setAudioErr("");
+      setAudioState("uploading");
+      setAudioState("transcribing");
+      const r = await transcribeAudio(audioBlob, { language: "ko", fileName: `remain-${Date.now()}.webm` });
+      const append = (r?.text || "").trim();
+      if (append) setText((prev) => (prev ? `${prev}\n${append}` : append));
+      setAudioState("idle");
+      setAudioBlob(null);
+      setAudioSec(0);
+    } catch (err) {
+      setAudioErr(err?.message || "음성 변환에 실패했어요. 텍스트로 이어서 작성해 주세요.");
+      setAudioState("error");
+    }
+  };
+
   const toggleM = (t) => {
-    if (t === "voice") { setRec((r) => !r); if (!rec) setMedia((p) => p.includes("voice") ? p : [...p, "voice"]); }
-    else setMedia((p) => p.includes(t) ? p : [...p, t]);
+    if (t === "voice") {
+      if (audioState === "recording") stopVoiceRecord();
+      else startVoiceRecord();
+      return;
+    }
+    setMedia((p) => p.includes(t) ? p : [...p, t]);
   };
   const handleSave = async () => {
     if (saving) return;
@@ -195,11 +293,63 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
                   ? <div style={{ display: "flex", gap: 2, height: 22, alignItems: "center" }}>{[0.3, 0.8, 1.3, 0.6, 0.9, 1.5, 0.5].map((h, i) => <div key={i} className="wave-bar" style={{ "--h": h, "--d": `${i * 0.07}s`, height: 6 + h * 8 }} />)}</div>
                   : <span style={{ fontSize: 20 }}>{m.icon}</span>}
                 <span style={{ fontFamily: "var(--f-b)", fontSize: 10, fontWeight: 700, color: m.t === "voice" && rec ? "var(--coral)" : media.includes(m.t) ? "white" : "var(--w35)" }}>
-                  {media.includes(m.t) && m.t !== "voice" ? `✓${m.label}` : m.label}
+                  {m.t === "voice" && audioState === "recording" ? `녹음중 ${audioSec}s` : media.includes(m.t) && m.t !== "voice" ? `✓${m.label}` : m.label}
                 </span>
               </button>
             ))}
           </div>
+
+          {(audioState === "ready" || audioState === "uploading" || audioState === "transcribing" || audioState === "error") && (
+            <div style={{ marginTop: 10, background: "var(--w08)", border: "1px solid var(--rim2)", borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, color: "var(--w60)", marginBottom: 6 }}>
+                {audioState === "ready" && `녹음 완료 (${audioSec}s)`}
+                {audioState === "uploading" && "업로드 중…"}
+                {audioState === "transcribing" && "음성 변환 중…"}
+                {audioState === "error" && "변환 실패"}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={runTranscribe}
+                  disabled={audioState !== "ready"}
+                  style={{
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    fontFamily: "var(--f-b)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: audioState === "ready" ? "pointer" : "default",
+                    background: audioState === "ready" ? "white" : "var(--w15)",
+                    color: audioState === "ready" ? "var(--night)" : "var(--w35)",
+                  }}
+                >
+                  변환하기
+                </button>
+                <button
+                  onClick={() => { setAudioBlob(null); setAudioState("idle"); setAudioErr(""); setAudioSec(0); }}
+                  style={{
+                    border: "1px solid var(--rim2)",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    fontFamily: "var(--f-b)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: "transparent",
+                    color: "var(--w60)",
+                  }}
+                >
+                  취소
+                </button>
+              </div>
+              {audioErr && <div style={{ marginTop: 6, fontFamily: "var(--f-b)", fontSize: 11, color: "#ff8f8f" }}>{audioErr}</div>}
+              {debugAudio && (
+                <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 10, color: "#8CFF9E" }}>
+                  debugAudio state={audioState} sec={audioSec} blob={audioBlob ? audioBlob.size : 0}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ padding: "4px 18px 36px" }}>

@@ -100,7 +100,7 @@ export default function App() {
     };
 
     checkNotify();
-    const timer = window.setInterval(checkNotify, 1000); // TEMP: test mode (1s polling)
+    const timer = window.setInterval(checkNotify, 60000);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") checkNotify();

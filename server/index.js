@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import multer from "multer";
 import { createServer } from "http";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -34,6 +35,83 @@ app.use("/api", rateLimit({
   legacyHeaders: false,
   message: { error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." },
 }));
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+});
+
+const transcribeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "음성 변환 요청이 많습니다. 잠시 후 다시 시도해주세요." },
+});
+
+app.post("/api/transcribe", transcribeLimiter, upload.single("audio"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "audio 파일이 필요합니다." });
+
+    const provider = (process.env.WHISPER_PROVIDER || "local").toLowerCase();
+    const language = "ko"; // fixed per product decision
+
+    const form = new FormData();
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype || "audio/webm" });
+    form.append("file", blob, req.file.originalname || "recording.webm");
+    form.append("language", language);
+
+    let endpoint = "";
+    let modelName = "";
+    let headers = {};
+
+    if (provider === "openai") {
+      const openaiKey = process.env.OPENAI_API_KEY;
+      if (!openaiKey) return res.status(500).json({ error: "OPENAI_API_KEY가 설정되지 않았습니다." });
+      endpoint = process.env.OPENAI_TRANSCRIBE_URL || "https://api.openai.com/v1/audio/transcriptions";
+      modelName = process.env.OPENAI_WHISPER_MODEL || "whisper-1";
+      headers = { Authorization: `Bearer ${openaiKey}` };
+    } else {
+      endpoint = process.env.WHISPER_LOCAL_URL || "http://127.0.0.1:9000/v1/audio/transcriptions";
+      modelName = process.env.WHISPER_LOCAL_MODEL || "whisper-1";
+      if (process.env.WHISPER_LOCAL_AUTH_BEARER) {
+        headers.Authorization = `Bearer ${process.env.WHISPER_LOCAL_AUTH_BEARER}`;
+      }
+    }
+
+    form.append("model", modelName);
+
+    const startedAt = Date.now();
+    const resp = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+
+    const raw = await resp.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = { text: raw };
+    }
+
+    if (!resp.ok) {
+      console.error("[Transcribe Error]", { provider, status: resp.status, body: parsed });
+      return res.status(resp.status).json({ error: parsed.error?.message || parsed.error || "음성 변환 실패" });
+    }
+
+    const text = parsed.text || parsed.result || parsed.transcript || "";
+    return res.json({
+      text,
+      provider,
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (err) {
+    console.error("[Transcribe Server Error]", err);
+    return res.status(500).json({ error: "음성 변환 중 서버 오류" });
+  }
+});
 
 app.post("/api/chat", async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;

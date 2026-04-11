@@ -189,6 +189,23 @@ remain-app/
 // Response: Anthropic API response object
 ```
 
+### POST /api/transcribe
+
+Whisper 호환 음성 인식 엔드포인트입니다. (dev / docker 공통)
+
+- Content-Type: `multipart/form-data`
+- field: `audio` (webm/wav/mp3 등)
+
+응답 예시:
+
+```json
+{
+  "text": "변환된 텍스트",
+  "provider": "local",
+  "durationMs": 812
+}
+```
+
 ---
 
 ## 기능
@@ -214,6 +231,12 @@ remain-app/
 | `HOST` | | `127.0.0.1` | 서버 바인딩 호스트 (`0.0.0.0`이면 LAN 허용) |
 | `CLIENT_URLS` | | `http://localhost:5173` | CORS 허용 URL 목록(쉼표 구분) |
 | `NODE_ENV` | | `development` | `production` 설정 시 정적 파일 서빙 |
+| `WHISPER_PROVIDER` | | `local` | 음성 변환 provider (`local` 또는 `openai`) |
+| `WHISPER_LOCAL_URL` | | `http://127.0.0.1:9000/v1/audio/transcriptions` | local provider endpoint |
+| `WHISPER_LOCAL_MODEL` | | `whisper-1` | local provider model name |
+| `OPENAI_API_KEY` | | — | openai provider 사용 시 API 키 |
+| `OPENAI_TRANSCRIBE_URL` | | `https://api.openai.com/v1/audio/transcriptions` | openai STT endpoint |
+| `OPENAI_WHISPER_MODEL` | | `whisper-1` | openai model name |
 
 ---
 
