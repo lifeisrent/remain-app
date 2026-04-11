@@ -48,8 +48,16 @@ export default function App() {
 
 
   const debugLayout = useMemo(() => {
+    const href = window.location.href.toLowerCase();
     const params = new URLSearchParams(window.location.search);
-    return params.get("debugLayout") === "1" || params.get("debugViewport") === "1";
+    return (
+      params.get("debugLayout") === "1" ||
+      params.get("debugViewport") === "1" ||
+      params.get("debuglayout") === "1" ||
+      params.get("debugviewport") === "1" ||
+      href.includes("debuglayout=1") ||
+      href.includes("debugviewport=1")
+    );
   }, []);
 
   useEffect(() => {
