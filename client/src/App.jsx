@@ -176,9 +176,9 @@ screen:${vpStats.screenH}`}
       ) : (
         <>
           {/* Background */}
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(165deg,#100D22,#09071A 60%,#0D1018 100%)" }} />
-          <div className="blob" style={{ width: 280, height: 280, top: -80, left: -80, background: `${soul.color}10`, opacity: 1, "--bd": "14s", "--tx": "20px", "--ty": "10px" }} />
-          <div className="blob" style={{ width: 220, height: 220, bottom: 100, right: -60, background: "rgba(155,48,255,.06)", opacity: 1, "--bd": "11s", "--tx": "-15px", "--ty": "-20px" }} />
+          <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "linear-gradient(165deg,#100D22,#09071A 60%,#0D1018 100%)" }} />
+          <div className="blob" style={{ width: 280, height: 280, top: -80, left: -80, background: `${soul.color}10`, opacity: 1, zIndex: 2, "--bd": "14s", "--tx": "20px", "--ty": "10px" }} />
+          <div className="blob" style={{ width: 220, height: 220, bottom: 100, right: -60, background: "rgba(155,48,255,.06)", opacity: 1, zIndex: 2, "--bd": "11s", "--tx": "-15px", "--ty": "-20px" }} />
 
           {/* Screens */}
           <div className={`app-main ${showNav ? "" : "app-main--full"}`}>

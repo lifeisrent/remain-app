@@ -184,6 +184,8 @@ body {
 /* ─── Stars / Blobs ─────────────────────── */
 .star {
   position: absolute;
+  z-index: 0;
+  pointer-events: none;
   border-radius: 50%;
   background: white;
   animation: tw var(--d, 3s) ease-in-out infinite var(--del, 0s);
@@ -260,6 +262,8 @@ body {
 .app-main {
   position: absolute;
   inset: 0;
+  z-index: 10;
+  background: linear-gradient(165deg,#100D22,#09071A 60%,#0D1018 100%);
   padding-top: 12px;
   padding-bottom: 70px;
 }
