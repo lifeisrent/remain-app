@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import Soul from "./Soul";
 import { QUESTIONS, SENSE_COLORS, TIMES } from "../utils/constants";
 
-export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, soul, saveMemory, user, onUpdateNotifyTime, onBack }) {
+export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, soul, saveMemory, user, onUpdateNotifyTime, onSetNotifyAfterSeconds, onBack }) {
   if (!active) return null;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <WriteCard active={step === "card"} q={q} qIdx={qIdx} setQIdx={setQIdx} soul={soul}
         user={user}
         onUpdateNotifyTime={onUpdateNotifyTime}
+        onSetNotifyAfterSeconds={onSetNotifyAfterSeconds}
         onWrite={() => setStep("writing")} onBack={onBack} />
       <WriteEditor active={step === "writing"} q={q} soul={soul}
         onBack={() => setStep("card")}
@@ -19,7 +20,7 @@ export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, sou
   );
 }
 
-function WriteCard({ active, q, qIdx, setQIdx, soul, user, onUpdateNotifyTime, onWrite, onBack }) {
+function WriteCard({ active, q, qIdx, setQIdx, soul, user, onUpdateNotifyTime, onSetNotifyAfterSeconds, onWrite, onBack }) {
   return (
     <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 0, background: "transparent" }}>
       <div style={{ padding: "48px 20px 32px" }}>
@@ -71,6 +72,25 @@ function WriteCard({ active, q, qIdx, setQIdx, soul, user, onUpdateNotifyTime, o
               </button>
             ))}
           </div>
+
+          <button
+            onClick={() => onSetNotifyAfterSeconds?.(10)}
+            style={{
+              width: "100%",
+              marginTop: 8,
+              border: "1px dashed var(--rim3)",
+              borderRadius: 10,
+              padding: "9px 8px",
+              cursor: "pointer",
+              fontFamily: "var(--f-b)",
+              fontSize: 11,
+              fontWeight: 700,
+              background: "var(--w08)",
+              color: "var(--w80)",
+            }}
+          >
+            테스트: 현재 시각 기준 10초 후 알림
+          </button>
         </div>
       </div>
     </div>

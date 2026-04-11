@@ -23,7 +23,7 @@ function NavItem({ icon, label, on, onClick }) {
 export default function App() {
   const [phase, setPhase] = useState("loading"); // loading | onboarding | main
   const [tab, setTab] = useState("home");
-  const [user, setUser] = useState({ name: "", purpose: null, soulId: null, notifyTime: null });
+  const [user, setUser] = useState({ name: "", purpose: null, soulId: null, notifyTime: null, notifyAtIso: null });
   const [memories, setMemories] = useState([]);
   const [writeStep, setWriteStep] = useState("card");
   const [qIdx, setQIdx] = useState(0);
@@ -63,15 +63,29 @@ export default function App() {
       const dateKey = formatDateKey(now);
       const notifyId = user?.notifyTime;
       const hhmm = getNotifyTimeValue(notifyId);
-      const storageKey = `remain:notify:lastShown:${dateKey}`;
-      const alreadyShown = !!(await Store.get(storageKey));
-      const shouldPrompt = !alreadyShown && !!hhmm && isWithinNotifyWindow(now, hhmm, 5);
+
+      let targetForDebug = hhmm;
+      let shouldPrompt = false;
+      let alreadyShown = false;
+
+      if (notifyId === "custom" && user?.notifyAtIso) {
+        const customKey = `remain:notify:custom:lastShown:${user.notifyAtIso}`;
+        alreadyShown = !!(await Store.get(customKey));
+        const targetMs = new Date(user.notifyAtIso).getTime();
+        const diffMs = Math.abs(now.getTime() - targetMs);
+        shouldPrompt = !alreadyShown && diffMs <= 15000; // ±15s window for test mode
+        targetForDebug = user.notifyAtIso;
+      } else {
+        const storageKey = `remain:notify:lastShown:${dateKey}`;
+        alreadyShown = !!(await Store.get(storageKey));
+        shouldPrompt = !alreadyShown && !!hhmm && isWithinNotifyWindow(now, hhmm, 5);
+      }
 
       if (!mounted) return;
       setNotifyState({
         shouldPrompt,
         lastCheckAt: now.toISOString(),
-        todayTarget: hhmm,
+        todayTarget: targetForDebug,
         alreadyShown,
       });
     };
@@ -92,14 +106,24 @@ export default function App() {
   }, [phase, user?.notifyTime]);
 
   const handleSnoozeNotify = async () => {
-    const dateKey = formatDateKey(new Date());
-    await Store.set(`remain:notify:lastShown:${dateKey}`, { at: new Date().toISOString(), action: "later" });
+    const nowIso = new Date().toISOString();
+    if (user?.notifyTime === "custom" && user?.notifyAtIso) {
+      await Store.set(`remain:notify:custom:lastShown:${user.notifyAtIso}`, { at: nowIso, action: "later" });
+    } else {
+      const dateKey = formatDateKey(new Date());
+      await Store.set(`remain:notify:lastShown:${dateKey}`, { at: nowIso, action: "later" });
+    }
     setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: true }));
   };
 
   const handleWriteFromNotify = async () => {
-    const dateKey = formatDateKey(new Date());
-    await Store.set(`remain:notify:lastShown:${dateKey}`, { at: new Date().toISOString(), action: "write" });
+    const nowIso = new Date().toISOString();
+    if (user?.notifyTime === "custom" && user?.notifyAtIso) {
+      await Store.set(`remain:notify:custom:lastShown:${user.notifyAtIso}`, { at: nowIso, action: "write" });
+    } else {
+      const dateKey = formatDateKey(new Date());
+      await Store.set(`remain:notify:lastShown:${dateKey}`, { at: nowIso, action: "write" });
+    }
     setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: true }));
     setTab("write");
     setWriteStep("card");
@@ -130,10 +154,18 @@ export default function App() {
   };
 
   const updateNotifyTime = async (notifyTime) => {
-    const nextUser = { ...user, notifyTime };
+    const nextUser = { ...user, notifyTime, notifyAtIso: null };
     setUser(nextUser);
     await Store.set("remain:user", nextUser);
     showToast("질문 시간이 업데이트됐어요");
+  };
+
+  const setNotifyAfterSeconds = async (seconds = 10) => {
+    const target = new Date(Date.now() + seconds * 1000).toISOString();
+    const nextUser = { ...user, notifyTime: "custom", notifyAtIso: target };
+    setUser(nextUser);
+    await Store.set("remain:user", nextUser);
+    showToast(`테스트 알림: ${seconds}초 후`);
   };
 
   const soul = SOULS.find((s) => s.id === user.soulId) || SOULS[0];
@@ -163,7 +195,7 @@ export default function App() {
 
       {debugNotify && (
         <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2400, background: "rgba(0,0,0,.72)", color: "#8CFF9E", border: "1px solid rgba(140,255,158,.35)", borderRadius: 8, padding: "8px 10px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.35 }}>
-{`debugNotify\nnotifyId:${user?.notifyTime || "-"}\ntarget:${notifyState.todayTarget || "-"}\nlast:${notifyState.lastCheckAt ? new Date(notifyState.lastCheckAt).toLocaleTimeString("ko-KR") : "-"}\nshown:${String(notifyState.alreadyShown)}\nprompt:${String(notifyState.shouldPrompt)}`}
+{`debugNotify\nnotifyId:${user?.notifyTime || "-"}\ntarget:${notifyState.todayTarget || "-"}\nnow:${new Date().toLocaleTimeString("ko-KR")}\nlast:${notifyState.lastCheckAt ? new Date(notifyState.lastCheckAt).toLocaleTimeString("ko-KR") : "-"}\nshown:${String(notifyState.alreadyShown)}\nprompt:${String(notifyState.shouldPrompt)}`}
         </div>
       )}
 
@@ -190,6 +222,7 @@ export default function App() {
               q={q} qIdx={qIdx} setQIdx={setQIdx} soul={soul} saveMemory={saveMemory}
               user={user}
               onUpdateNotifyTime={updateNotifyTime}
+              onSetNotifyAfterSeconds={setNotifyAfterSeconds}
               onBack={() => { setWriteStep("card"); setTab("home"); }} />
             <ChatTab active={tab === "chat"} user={user} soul={soul} />
             <ArchiveTab active={tab === "archive"} soul={soul} memories={memories} />
