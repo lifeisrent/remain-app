@@ -103,7 +103,7 @@ export default function App() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [phase, user?.notifyTime]);
+  }, [phase, user?.notifyTime, user?.notifyAtIso]);
 
   const handleSnoozeNotify = async () => {
     const nowIso = new Date().toISOString();
@@ -164,6 +164,7 @@ export default function App() {
     const target = new Date(Date.now() + seconds * 1000).toISOString();
     const nextUser = { ...user, notifyTime: "custom", notifyAtIso: target };
     setUser(nextUser);
+    setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: false, todayTarget: target, lastCheckAt: new Date().toISOString() }));
     await Store.set("remain:user", nextUser);
     showToast(`테스트 알림: ${seconds}초 후`);
   };
