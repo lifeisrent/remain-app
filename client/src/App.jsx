@@ -44,24 +44,6 @@ export default function App() {
     })();
   }, []);
 
-  // Android Chrome viewport stabilization (address bar show/hide)
-  useEffect(() => {
-    const setAppVh = () => {
-      const vh = window.visualViewport?.height || window.innerHeight;
-      document.documentElement.style.setProperty("--app-vh", `${vh}px`);
-    };
-
-    setAppVh();
-    window.addEventListener("resize", setAppVh);
-    window.visualViewport?.addEventListener("resize", setAppVh);
-    window.visualViewport?.addEventListener("scroll", setAppVh);
-
-    return () => {
-      window.removeEventListener("resize", setAppVh);
-      window.visualViewport?.removeEventListener("resize", setAppVh);
-      window.visualViewport?.removeEventListener("scroll", setAppVh);
-    };
-  }, []);
 
   const showToast = (msg, dur = 3200) => {
     setToast({ msg, hiding: false });
@@ -113,7 +95,9 @@ export default function App() {
       {toast && <div className={`toast ${toast.hiding ? "hide" : ""}`}>{toast.msg}</div>}
 
       {phase === "onboarding" ? (
-        <Onboarding onDone={finishOnboarding} />
+        <div className="app-main app-main--full">
+          <Onboarding onDone={finishOnboarding} />
+        </div>
       ) : (
         <>
           {/* Background */}
@@ -122,14 +106,16 @@ export default function App() {
           <div className="blob" style={{ width: 220, height: 220, bottom: 100, right: -60, background: "rgba(155,48,255,.06)", opacity: 1, "--bd": "11s", "--tx": "-15px", "--ty": "-20px" }} />
 
           {/* Screens */}
-          <HomeTab active={tab === "home"} user={user} soul={soul} memories={memories}
-            onWrite={() => { setTab("write"); setWriteStep("card"); }} onChat={() => setTab("chat")} />
-          <WriteFlow active={tab === "write"} step={writeStep} setStep={setWriteStep}
-            q={q} qIdx={qIdx} setQIdx={setQIdx} soul={soul} saveMemory={saveMemory}
-            onBack={() => { setWriteStep("card"); setTab("home"); }} />
-          <ChatTab active={tab === "chat"} user={user} soul={soul} />
-          <ArchiveTab active={tab === "archive"} soul={soul} memories={memories} />
-          <PremiumTab active={tab === "premium"} soul={soul} />
+          <div className={`app-main ${showNav ? "" : "app-main--full"}`}>
+            <HomeTab active={tab === "home"} user={user} soul={soul} memories={memories}
+              onWrite={() => { setTab("write"); setWriteStep("card"); }} onChat={() => setTab("chat")} />
+            <WriteFlow active={tab === "write"} step={writeStep} setStep={setWriteStep}
+              q={q} qIdx={qIdx} setQIdx={setQIdx} soul={soul} saveMemory={saveMemory}
+              onBack={() => { setWriteStep("card"); setTab("home"); }} />
+            <ChatTab active={tab === "chat"} user={user} soul={soul} />
+            <ArchiveTab active={tab === "archive"} soul={soul} memories={memories} />
+            <PremiumTab active={tab === "premium"} soul={soul} />
+          </div>
 
           {/* Bottom Nav */}
           {showNav && (
