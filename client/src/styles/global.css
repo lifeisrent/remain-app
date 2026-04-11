@@ -90,10 +90,9 @@ body {
   .app-shell {
     position: fixed;
     inset: 0;
-    width: 100vw;
-    height: 100vh;   /* fallback */
-    height: 100dvh;  /* supported browsers */
-    height: var(--app-vh, 100dvh); /* JS-stabilized viewport for Android */
+    width: auto;
+    height: auto;
+    min-height: 0;
   }
 
   .nav {
