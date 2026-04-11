@@ -28,6 +28,7 @@ export default function App() {
   const [qIdx, setQIdx] = useState(0);
   const [toast, setToast] = useState(null);
   const [vpStats, setVpStats] = useState(null);
+  const [freezeDebug, setFreezeDebug] = useState(false);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function App() {
     if (!debugViewport) return;
 
     const collectStats = () => {
+      if (freezeDebug) return;
       const vv = window.visualViewport;
       const appShell = document.querySelector(".app-shell");
       const nav = document.querySelector(".nav");
@@ -86,7 +88,7 @@ export default function App() {
       window.visualViewport?.removeEventListener("resize", collectStats);
       window.visualViewport?.removeEventListener("scroll", collectStats);
     };
-  }, [debugViewport]);
+  }, [debugViewport, freezeDebug]);
 
 
   const showToast = (msg, dur = 3200) => {
@@ -156,9 +158,10 @@ export default function App() {
           fontFamily: "monospace",
           whiteSpace: "pre-wrap",
           width: "min(82vw, 320px)",
-          pointerEvents: "none",
-        }}>
-{`inner:${vpStats.innerHeight}
+          pointerEvents: "auto",
+        }} onClick={() => setFreezeDebug((v) => !v)}>
+{`[tap: ${freezeDebug ? "resume" : "freeze"}]
+inner:${vpStats.innerHeight}
 vvH:${vpStats.vvHeight} vvTop:${vpStats.vvTop}
 app:${vpStats.appTop}~${vpStats.appBottom}
 nav:${vpStats.navTop}~${vpStats.navBottom} h:${vpStats.navHeight}
