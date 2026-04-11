@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Onboarding from "./components/Onboarding";
 import HomeTab from "./components/HomeTab";
 import WriteFlow from "./components/WriteFlow";
@@ -27,8 +27,6 @@ export default function App() {
   const [writeStep, setWriteStep] = useState("card");
   const [qIdx, setQIdx] = useState(0);
   const [toast, setToast] = useState(null);
-  const [vpStats, setVpStats] = useState(null);
-  const [freezeDebug, setFreezeDebug] = useState(false);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -46,60 +44,6 @@ export default function App() {
     })();
   }, []);
 
-
-  const debugLayout = useMemo(() => {
-    const href = window.location.href.toLowerCase();
-    const params = new URLSearchParams(window.location.search);
-    return (
-      params.get("debugLayout") === "1" ||
-      params.get("debugViewport") === "1" ||
-      params.get("debuglayout") === "1" ||
-      params.get("debugviewport") === "1" ||
-      href.includes("debuglayout=1") ||
-      href.includes("debugviewport=1")
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!debugLayout) return;
-
-    const collect = () => {
-      if (freezeDebug) return;
-      const vv = window.visualViewport;
-      const app = document.querySelector(".app-shell")?.getBoundingClientRect();
-      const main = document.querySelector(".app-main")?.getBoundingClientRect();
-      const nav = document.querySelector(".nav")?.getBoundingClientRect();
-      const screen = document.querySelector(".screen.enter")?.getBoundingClientRect();
-
-      setVpStats({
-        innerH: Math.round(window.innerHeight),
-        vvH: Math.round(vv?.height || window.innerHeight),
-        vvTop: Math.round(vv?.offsetTop || 0),
-        appTop: app ? Math.round(app.top) : null,
-        appBottom: app ? Math.round(app.bottom) : null,
-        mainTop: main ? Math.round(main.top) : null,
-        mainBottom: main ? Math.round(main.bottom) : null,
-        navTop: nav ? Math.round(nav.top) : null,
-        navBottom: nav ? Math.round(nav.bottom) : null,
-        navH: nav ? Math.round(nav.height) : null,
-        scTop: screen ? Math.round(screen.top) : null,
-        scBottom: screen ? Math.round(screen.bottom) : null,
-      });
-    };
-
-    collect();
-    window.addEventListener("resize", collect);
-    window.visualViewport?.addEventListener("resize", collect);
-    window.visualViewport?.addEventListener("scroll", collect);
-    const t = window.setInterval(collect, 700);
-
-    return () => {
-      window.removeEventListener("resize", collect);
-      window.visualViewport?.removeEventListener("resize", collect);
-      window.visualViewport?.removeEventListener("scroll", collect);
-      window.clearInterval(t);
-    };
-  }, [debugLayout, freezeDebug]);
 
   const showToast = (msg, dur = 3200) => {
     setToast({ msg, hiding: false });
@@ -149,36 +93,6 @@ export default function App() {
 
       {/* Toast */}
       {toast && <div className={`toast ${toast.hiding ? "hide" : ""}`}>{toast.msg}</div>}
-
-      {debugLayout && vpStats && (
-        <div
-          onClick={() => setFreezeDebug((v) => !v)}
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            zIndex: 2500,
-            background: "rgba(0,0,0,0.82)",
-            border: "1px solid rgba(140,255,158,0.45)",
-            color: "#8CFF9E",
-            borderRadius: 8,
-            padding: "10px 12px",
-            fontSize: 12,
-            lineHeight: 1.4,
-            fontFamily: "monospace",
-            whiteSpace: "pre-wrap",
-            width: "min(82vw, 320px)",
-          }}
-        >
-{`[tap:${freezeDebug ? "resume" : "freeze"}]
-inner:${vpStats.innerH} vv:${vpStats.vvH}/${vpStats.vvTop}
-app:${vpStats.appTop}~${vpStats.appBottom}
-main:${vpStats.mainTop}~${vpStats.mainBottom}
-nav:${vpStats.navTop}~${vpStats.navBottom} h:${vpStats.navH}
-scr:${vpStats.scTop}~${vpStats.scBottom}`}
-        </div>
-      )}
 
       {phase === "onboarding" ? (
         <div className="app-main app-main--full">
