@@ -203,3 +203,78 @@ Remain 앱의 기존 "기억 기록" 흐름에 **자기 전 상상 루틴**을 �
    - push delivered/open rate
    - push→write 진입률
    - 시간대별 완료율
+
+---
+
+## 6) Whisper 음성 기록 도입 계획 (Write 탭)
+
+### 6-1. 목표 (우선순위)
+1. **Write 탭에서 음성 버튼 클릭 → 녹음 → 텍스트 변환 → 질문 답변칸 자동 입력**
+2. Docker 배포 환경뿐 아니라 **`npm run dev`(client+server 로컬 개발)에서도 동일하게 동작**
+3. 기존 텍스트 입력 흐름과 충돌 없이 점진 도입 (실패 시 텍스트 입력 유지)
+
+### 6-2. 현재 전제
+- 현 코드베이스에는 Whisper 서버 라우트가 명확히 남아있지 않음(우선 신규 경로로 재정의).
+- 따라서 `POST /api/transcribe`를 단일 표준 엔드포인트로 신설해 환경별 구현만 분기.
+
+### 6-3. 아키텍처 (환경별 공통 인터페이스)
+- 공통 API: `POST /api/transcribe`
+  - 입력: `multipart/form-data` (`audio` 파일)
+  - 출력: `{ text: string, durationMs?: number, provider: "openai" | "local" }`
+
+- Provider 분기 (서버 내부)
+  - `WHISPER_PROVIDER=openai`:
+    - OpenAI Whisper API로 전송
+    - 로컬(dev) / Docker(prod) 모두 사용 가능
+  - `WHISPER_PROVIDER=local`:
+    - 로컬 whisper/faster-whisper 서비스(혹은 컨테이너)에 HTTP 전달
+    - Docker에서는 sidecar 구성, dev에서는 선택적으로 로컬 프로세스 사용
+
+### 6-4. 개발 환경(`npm run dev`) 보장 전략
+1. 서버 `.env`에 아래를 지원
+   - `WHISPER_PROVIDER=openai|local`
+   - `OPENAI_API_KEY` (provider=openai일 때)
+   - `WHISPER_LOCAL_URL` (provider=local일 때)
+2. `npm run dev` 실행 시 서버가 provider 설정을 읽어 동일 라우트(`/api/transcribe`) 처리
+3. 프론트는 환경에 무관하게 항상 `/api/transcribe`만 호출
+
+### 6-5. UI/UX 플로우 (Write 탭)
+1. 질문 카드에 `🎤 음성으로 답하기` 버튼 추가
+2. 상태 머신
+   - `idle` → `recording` → `uploading` → `transcribing` → `done|error`
+3. 변환 완료 시
+   - 현재 질문 입력칸에 결과 텍스트 append 또는 replace (정책 선택)
+4. 실패 시
+   - 토스트 + 텍스트 입력으로 자연스럽게 복귀
+
+### 6-6. 기술 구현 단계
+1. Server
+   - `multer`(또는 busboy)로 오디오 업로드 수신
+   - `/api/transcribe` 라우트 추가
+   - provider adapter (`transcribeWithOpenAI`, `transcribeWithLocal`) 분리
+2. Client
+   - MediaRecorder 기반 녹음 유틸 추가
+   - WriteFlow에서 음성 버튼/진행 상태 UI 추가
+   - `client/src/utils/api.js`에 `transcribeAudio(blob)` 추가
+3. 문서
+   - README + `.env.example`에 dev/docker 공통 설정법 추가
+
+### 6-7. 비기능 요구사항
+- 파일 크기 제한(예: 10MB), 시간 제한(예: 90초)
+- 서버 rate-limit 경로 분리(`/api/transcribe` 별도 제한)
+- PII 주의 문구(음성 업로드 안내)
+- 디버그 모드(`?debugAudio=1`)에서 상태/오류 코드 표시
+
+### 6-8. 수용 기준(AC)
+1. `npm run dev` 환경에서 음성 녹음 후 텍스트 변환 성공
+2. Docker 환경에서 동일 UX/동일 API(`/api/transcribe`)로 동작
+3. 변환 실패 시 앱이 멈추지 않고 텍스트 입력으로 즉시 전환 가능
+4. 모바일(안드로이드 크롬)에서 최소 1회 성공 시나리오 통과
+
+### 6-9. 구현 순서 제안
+1. 서버 라우트 + openai provider 우선 (가장 빠른 성공 경로)
+2. Write 탭 녹음/업로드 UI 연결
+3. dev 실측 테스트(모바일 포함)
+4. local provider(선택) + docker sidecar 정리
+5. 회귀 테스트 + 문서화
+
