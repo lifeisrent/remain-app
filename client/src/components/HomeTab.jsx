@@ -21,7 +21,7 @@ export default function HomeTab({ active, user, soul, memories, onWrite, onChat 
   const mems = memCards.length > 0 ? memCards : fallback;
 
   return (
-    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 70, background: "transparent" }}>
+    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 0, background: "transparent" }}>
       <div style={{ padding: "48px 22px 0" }}>
         {/* Greeting */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
@@ -88,7 +88,7 @@ export default function HomeTab({ active, user, soul, memories, onWrite, onChat 
         <div style={{ fontFamily: "var(--f-d)", fontSize: 18, color: "white", marginBottom: 12 }}>소중한 기억들</div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, padding: "0 22px 100px", overflowX: "auto", scrollbarWidth: "none" }}>
+      <div style={{ display: "flex", gap: 10, padding: "0 22px 18px", overflowX: "auto", scrollbarWidth: "none" }}>
         {mems.map((m, i) => (
           <div key={i} className="mem-chip" style={{ background: `linear-gradient(145deg,${m.color}DD,${m.color}88)` }}>
             <div style={{ position: "absolute", top: 10, right: 12, opacity: 0.25 }}><Soul id={m.soulId} size={0.4} color="white" anim="fa" /></div>
