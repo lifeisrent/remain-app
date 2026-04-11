@@ -23,7 +23,7 @@ function NavItem({ icon, label, on, onClick }) {
 export default function App() {
   const [phase, setPhase] = useState("loading"); // loading | onboarding | main
   const [tab, setTab] = useState("home");
-  const [user, setUser] = useState({ name: "", purpose: null, soulId: null, notifyTime: null, notifyAtIso: null });
+  const [user, setUser] = useState({ name: "", purpose: null, soulId: null, notifyTime: null, notifyAtIso: null, notifyAtMs: null });
   const [memories, setMemories] = useState([]);
   const [writeStep, setWriteStep] = useState("card");
   const [qIdx, setQIdx] = useState(0);
@@ -68,13 +68,13 @@ export default function App() {
       let shouldPrompt = false;
       let alreadyShown = false;
 
-      if (notifyId === "custom" && user?.notifyAtIso) {
-        const customKey = `remain:notify:custom:lastShown:${user.notifyAtIso}`;
+      if (notifyId === "custom" && (user?.notifyAtMs || user?.notifyAtIso)) {
+        const targetMs = Number(user?.notifyAtMs || new Date(user.notifyAtIso).getTime());
+        const customKey = `remain:notify:custom:lastShown:${targetMs}`;
         alreadyShown = !!(await Store.get(customKey));
-        const targetMs = new Date(user.notifyAtIso).getTime();
         const elapsedMs = now.getTime() - targetMs;
         shouldPrompt = !alreadyShown && elapsedMs >= 0 && elapsedMs <= 15000; // fire only after target time, within 15s
-        targetForDebug = user.notifyAtIso;
+        targetForDebug = new Date(targetMs).toISOString();
       } else {
         const storageKey = `remain:notify:lastShown:${dateKey}`;
         alreadyShown = !!(await Store.get(storageKey));
@@ -107,8 +107,9 @@ export default function App() {
 
   const handleSnoozeNotify = async () => {
     const nowIso = new Date().toISOString();
-    if (user?.notifyTime === "custom" && user?.notifyAtIso) {
-      await Store.set(`remain:notify:custom:lastShown:${user.notifyAtIso}`, { at: nowIso, action: "later" });
+    if (user?.notifyTime === "custom" && (user?.notifyAtMs || user?.notifyAtIso)) {
+      const customToken = Number(user?.notifyAtMs || new Date(user.notifyAtIso).getTime());
+      await Store.set(`remain:notify:custom:lastShown:${customToken}`, { at: nowIso, action: "later" });
     } else {
       const dateKey = formatDateKey(new Date());
       await Store.set(`remain:notify:lastShown:${dateKey}`, { at: nowIso, action: "later" });
@@ -118,8 +119,9 @@ export default function App() {
 
   const handleWriteFromNotify = async () => {
     const nowIso = new Date().toISOString();
-    if (user?.notifyTime === "custom" && user?.notifyAtIso) {
-      await Store.set(`remain:notify:custom:lastShown:${user.notifyAtIso}`, { at: nowIso, action: "write" });
+    if (user?.notifyTime === "custom" && (user?.notifyAtMs || user?.notifyAtIso)) {
+      const customToken = Number(user?.notifyAtMs || new Date(user.notifyAtIso).getTime());
+      await Store.set(`remain:notify:custom:lastShown:${customToken}`, { at: nowIso, action: "write" });
     } else {
       const dateKey = formatDateKey(new Date());
       await Store.set(`remain:notify:lastShown:${dateKey}`, { at: nowIso, action: "write" });
@@ -154,15 +156,16 @@ export default function App() {
   };
 
   const updateNotifyTime = async (notifyTime) => {
-    const nextUser = { ...user, notifyTime, notifyAtIso: null };
+    const nextUser = { ...user, notifyTime, notifyAtIso: null, notifyAtMs: null };
     setUser(nextUser);
     await Store.set("remain:user", nextUser);
     showToast("질문 시간이 업데이트됐어요");
   };
 
   const setNotifyAfterSeconds = async (seconds = 10) => {
-    const target = new Date(Date.now() + seconds * 1000).toISOString();
-    const nextUser = { ...user, notifyTime: "custom", notifyAtIso: target };
+    const targetMs = Date.now() + seconds * 1000;
+    const target = new Date(targetMs).toISOString();
+    const nextUser = { ...user, notifyTime: "custom", notifyAtIso: target, notifyAtMs: targetMs };
     setUser(nextUser);
     setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: false, todayTarget: target, lastCheckAt: new Date().toISOString() }));
     await Store.set("remain:user", nextUser);
