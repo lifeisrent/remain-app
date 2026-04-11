@@ -72,8 +72,8 @@ export default function App() {
         const customKey = `remain:notify:custom:lastShown:${user.notifyAtIso}`;
         alreadyShown = !!(await Store.get(customKey));
         const targetMs = new Date(user.notifyAtIso).getTime();
-        const diffMs = Math.abs(now.getTime() - targetMs);
-        shouldPrompt = !alreadyShown && diffMs <= 15000; // ±15s window for test mode
+        const elapsedMs = now.getTime() - targetMs;
+        shouldPrompt = !alreadyShown && elapsedMs >= 0 && elapsedMs <= 15000; // fire only after target time, within 15s
         targetForDebug = user.notifyAtIso;
       } else {
         const storageKey = `remain:notify:lastShown:${dateKey}`;
