@@ -68,7 +68,7 @@ export default function Onboarding({ onDone }) {
       </div>
 
       {/* Step 1 — Purpose */}
-      <div className={`screen ${v(1)}`} style={{ padding: "0 22px", display: "flex", flexDirection: "column" }}>
+      <div className={`screen scr ${v(1)}`} style={{ padding: "0 22px", display: "flex", flexDirection: "column" }}>
         <div style={{ paddingTop: 96, flex: 1 }}>
           <div style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 12 }} className="fu">첫 번째 질문</div>
           <h2 style={{ fontFamily: "var(--f-d)", fontSize: 34, color: "white", marginBottom: 8, lineHeight: 1.1 }} className="fu fu1">어떤 마음으로<br />오셨나요?</h2>
@@ -82,11 +82,11 @@ export default function Onboarding({ onDone }) {
             ))}
           </div>
         </div>
-        <div style={{ padding: "20px 0 36px" }}><button className="btn btn-white btn-full" disabled={!purpose} onClick={next}>계속하기</button></div>
+        <div style={{ padding: "20px 0 calc(36px + env(safe-area-inset-bottom, 0px))" }}><button className="btn btn-white btn-full" disabled={!purpose} onClick={next}>계속하기</button></div>
       </div>
 
       {/* Step 2 — Name */}
-      <div className={`screen ${v(2)}`} style={{ padding: "0 28px", display: "flex", flexDirection: "column" }}>
+      <div className={`screen scr ${v(2)}`} style={{ padding: "0 28px", display: "flex", flexDirection: "column" }}>
         <div style={{ paddingTop: 100, flex: 1 }}>
           <div style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 14 }} className="fu">당신의 이름</div>
           <h2 style={{ fontFamily: "var(--f-d)", fontSize: 34, color: "white", marginBottom: 12, lineHeight: 1.1 }} className="fu fu1">당신을 뭐라고<br />불러드릴까요?</h2>
@@ -96,7 +96,7 @@ export default function Onboarding({ onDone }) {
             {name && <p style={{ textAlign: "center", marginTop: 14, fontFamily: "var(--f-b)", fontSize: 14, color: "var(--w35)", fontStyle: "italic" }}>안녕하세요, {name}님.</p>}
           </div>
         </div>
-        <div style={{ padding: "24px 0 36px" }}><button className="btn btn-white btn-full" disabled={!name.trim()} onClick={next}>{name ? `안녕하세요, ${name}님` : "이름을 입력해주세요"}</button></div>
+        <div style={{ padding: "24px 0 calc(36px + env(safe-area-inset-bottom, 0px))" }}><button className="btn btn-white btn-full" disabled={!name.trim()} onClick={next}>{name ? `안녕하세요, ${name}님` : "이름을 입력해주세요"}</button></div>
       </div>
 
       {/* Step 3 — Soul */}
@@ -125,7 +125,7 @@ export default function Onboarding({ onDone }) {
       <FirstQuestion v={v(4)} active={step === 4} name={name} soulId={soulId} onNext={next} />
 
       {/* Step 5 — Notify */}
-      <div className={`screen ${v(5)}`} style={{ padding: "0 24px", display: "flex", flexDirection: "column" }}>
+      <div className={`screen scr ${v(5)}`} style={{ padding: "0 24px", display: "flex", flexDirection: "column" }}>
         <div style={{ paddingTop: 96, flex: 1 }}>
           <div style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 12 }} className="fu">질문 받을 시간</div>
           <h2 style={{ fontFamily: "var(--f-d)", fontSize: 32, color: "white", marginBottom: 28 }} className="fu fu1">언제 질문을<br />받고 싶으세요?</h2>
@@ -137,7 +137,7 @@ export default function Onboarding({ onDone }) {
             ))}
           </div>
         </div>
-        <div style={{ padding: "28px 0 36px" }}><button className="btn btn-white btn-full" disabled={!notify} onClick={next}>설정 완료</button></div>
+        <div style={{ padding: "28px 0 calc(36px + env(safe-area-inset-bottom, 0px))" }}><button className="btn btn-white btn-full" disabled={!notify} onClick={next}>설정 완료</button></div>
       </div>
 
       {/* Step 6 — Done */}
