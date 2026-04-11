@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import Soul from "./Soul";
-import { QUESTIONS, SENSE_COLORS } from "../utils/constants";
+import { QUESTIONS, SENSE_COLORS, TIMES } from "../utils/constants";
 
-export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, soul, saveMemory, onBack }) {
+export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, soul, saveMemory, user, onUpdateNotifyTime, onBack }) {
   if (!active) return null;
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <WriteCard active={step === "card"} q={q} qIdx={qIdx} setQIdx={setQIdx} soul={soul}
+        user={user}
+        onUpdateNotifyTime={onUpdateNotifyTime}
         onWrite={() => setStep("writing")} onBack={onBack} />
       <WriteEditor active={step === "writing"} q={q} soul={soul}
         onBack={() => setStep("card")}
@@ -17,7 +19,7 @@ export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, sou
   );
 }
 
-function WriteCard({ active, q, qIdx, setQIdx, soul, onWrite, onBack }) {
+function WriteCard({ active, q, qIdx, setQIdx, soul, user, onUpdateNotifyTime, onWrite, onBack }) {
   return (
     <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 0, background: "transparent" }}>
       <div style={{ padding: "48px 20px 32px" }}>
@@ -42,6 +44,33 @@ function WriteCard({ active, q, qIdx, setQIdx, soul, onWrite, onBack }) {
         <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 16 }}>
           <button onClick={() => setQIdx((i) => (i + 1) % QUESTIONS.length)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--f-b)", fontSize: 12, fontWeight: 700, color: "var(--w35)" }}>다른 질문</button>
           <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--f-b)", fontSize: 12, fontWeight: 700, color: "var(--w35)" }}>건너뛸게요</button>
+        </div>
+
+        <div className="card-dark" style={{ padding: "14px 14px", marginTop: 14 }}>
+          <div style={{ fontFamily: "var(--f-b)", fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 10 }}>
+            질문 받을 시간 설정
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+            {TIMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onUpdateNotifyTime?.(t.id)}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "9px 6px",
+                  cursor: "pointer",
+                  fontFamily: "var(--f-b)",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: user?.notifyTime === t.id ? "white" : "var(--w08)",
+                  color: user?.notifyTime === t.id ? "var(--night)" : "var(--w60)",
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

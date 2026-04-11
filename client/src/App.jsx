@@ -129,6 +129,13 @@ export default function App() {
     setPhase("main");
   };
 
+  const updateNotifyTime = async (notifyTime) => {
+    const nextUser = { ...user, notifyTime };
+    setUser(nextUser);
+    await Store.set("remain:user", nextUser);
+    showToast("질문 시간이 업데이트됐어요");
+  };
+
   const soul = SOULS.find((s) => s.id === user.soulId) || SOULS[0];
   const q = QUESTIONS[qIdx];
   const showNav = !(tab === "write" && writeStep !== "card");
@@ -181,6 +188,8 @@ export default function App() {
               onChat={() => setTab("chat")} />
             <WriteFlow active={tab === "write"} step={writeStep} setStep={setWriteStep}
               q={q} qIdx={qIdx} setQIdx={setQIdx} soul={soul} saveMemory={saveMemory}
+              user={user}
+              onUpdateNotifyTime={updateNotifyTime}
               onBack={() => { setWriteStep("card"); setTab("home"); }} />
             <ChatTab active={tab === "chat"} user={user} soul={soul} />
             <ArchiveTab active={tab === "archive"} soul={soul} memories={memories} />
