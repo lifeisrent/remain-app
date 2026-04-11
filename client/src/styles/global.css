@@ -57,48 +57,31 @@ body {
 #root {
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
 }
 
 /* ─── App Shell ────────────────────────── */
+/* Mobile-first: always fill visible app area */
 .app-shell {
-  width: 390px;
-  height: 844px;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
   background: var(--night);
 }
 
-/* Desktop/large screen preview keeps fixed phone frame */
-@media (max-height: 844px) {
-  .app-shell {
-    height: 100dvh;
-  }
-}
-
-@media (max-width: 390px) {
-  .app-shell {
-    width: 100vw;
-  }
-}
-
-/* Real mobile: use full-screen app container with fixed nav */
-@media (max-width: 768px) {
-  html, body, #root {
-    height: 100%;
-  }
-
+/* Desktop preview frame only */
+@media (min-width: 900px) and (pointer: fine) {
   #root {
-    align-items: stretch;
-    justify-content: stretch;
+    align-items: center;
+    justify-content: center;
   }
 
   .app-shell {
-    width: 100vw;
-    height: 100dvh;
-    height: 100vh;
-    border-radius: 0;
+    width: 390px;
+    height: 844px;
   }
 }
 
