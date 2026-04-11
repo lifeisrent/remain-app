@@ -44,6 +44,30 @@ export default function App() {
     })();
   }, []);
 
+  // Mobile viewport sync (Chrome/Firefox Android URL bar show/hide)
+  useEffect(() => {
+    const setViewportVars = () => {
+      const vv = window.visualViewport;
+      const height = vv?.height || window.innerHeight;
+      const offsetTop = vv?.offsetTop || 0;
+      document.documentElement.style.setProperty("--app-vh", `${Math.round(height)}px`);
+      document.documentElement.style.setProperty("--app-top", `${Math.round(offsetTop)}px`);
+    };
+
+    setViewportVars();
+    window.addEventListener("resize", setViewportVars);
+    window.addEventListener("orientationchange", setViewportVars);
+    window.visualViewport?.addEventListener("resize", setViewportVars);
+    window.visualViewport?.addEventListener("scroll", setViewportVars);
+
+    return () => {
+      window.removeEventListener("resize", setViewportVars);
+      window.removeEventListener("orientationchange", setViewportVars);
+      window.visualViewport?.removeEventListener("resize", setViewportVars);
+      window.visualViewport?.removeEventListener("scroll", setViewportVars);
+    };
+  }, []);
+
 
   const showToast = (msg, dur = 3200) => {
     setToast({ msg, hiding: false });

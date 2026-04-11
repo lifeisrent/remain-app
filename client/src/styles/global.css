@@ -10,6 +10,9 @@
 }
 
 :root {
+  --app-vh: 100vh;
+  --app-top: 0px;
+
   /* Colors */
   --night: #09071a;
   --deep: #100d22;
@@ -62,12 +65,13 @@ body {
 }
 
 /* ─── App Shell ────────────────────────── */
-/* Mobile-first: always fill visible app area */
+/* Mobile-first: fill the visual viewport exactly */
 .app-shell {
   width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  position: relative;
+  height: var(--app-vh);
+  position: fixed;
+  top: var(--app-top);
+  left: 0;
   overflow: hidden;
   background: var(--night);
 }
@@ -80,6 +84,8 @@ body {
   }
 
   .app-shell {
+    position: relative;
+    top: 0;
     width: 390px;
     height: 844px;
   }
@@ -256,6 +262,7 @@ body {
 .app-main {
   position: absolute;
   inset: 0;
+  padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
 }
 

@@ -21,7 +21,7 @@ export default function HomeTab({ active, user, soul, memories, onWrite, onChat 
   const mems = memCards.length > 0 ? memCards : fallback;
 
   return (
-    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 78, background: "transparent" }}>
+    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: "calc(78px + env(safe-area-inset-bottom, 0px))", background: "transparent" }}>
       <div style={{ padding: "48px 22px 0" }}>
         {/* Greeting */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
