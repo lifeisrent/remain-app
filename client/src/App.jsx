@@ -44,6 +44,25 @@ export default function App() {
     })();
   }, []);
 
+  // Android Chrome viewport stabilization (address bar show/hide)
+  useEffect(() => {
+    const setAppVh = () => {
+      const vh = window.visualViewport?.height || window.innerHeight;
+      document.documentElement.style.setProperty("--app-vh", `${vh}px`);
+    };
+
+    setAppVh();
+    window.addEventListener("resize", setAppVh);
+    window.visualViewport?.addEventListener("resize", setAppVh);
+    window.visualViewport?.addEventListener("scroll", setAppVh);
+
+    return () => {
+      window.removeEventListener("resize", setAppVh);
+      window.visualViewport?.removeEventListener("resize", setAppVh);
+      window.visualViewport?.removeEventListener("scroll", setAppVh);
+    };
+  }, []);
+
   const showToast = (msg, dur = 3200) => {
     setToast({ msg, hiding: false });
     setTimeout(() => setToast((t) => (t ? { ...t, hiding: true } : null)), dur - 400);

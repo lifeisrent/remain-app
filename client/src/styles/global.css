@@ -92,6 +92,7 @@ body {
     min-height: 100svh;
     height: 100vh;   /* fallback */
     height: 100dvh;  /* supported browsers */
+    height: var(--app-vh, 100dvh); /* JS-stabilized viewport for Android */
   }
 
   .nav {
