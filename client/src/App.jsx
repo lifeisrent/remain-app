@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Onboarding from "./components/Onboarding";
 import HomeTab from "./components/HomeTab";
 import WriteFlow from "./components/WriteFlow";
@@ -27,6 +27,7 @@ export default function App() {
   const [writeStep, setWriteStep] = useState("card");
   const [qIdx, setQIdx] = useState(0);
   const [toast, setToast] = useState(null);
+  const [vpStats, setVpStats] = useState(null);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -44,14 +45,39 @@ export default function App() {
     })();
   }, []);
 
+  const debugViewport = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("debugViewport") === "1";
+  }, []);
+
   // Mobile viewport sync (Chrome/Firefox Android URL bar show/hide)
   useEffect(() => {
     const setViewportVars = () => {
       const vv = window.visualViewport;
-      const height = vv?.height || window.innerHeight;
-      const offsetTop = vv?.offsetTop || 0;
-      document.documentElement.style.setProperty("--app-vh", `${Math.round(height)}px`);
-      document.documentElement.style.setProperty("--app-top", `${Math.round(offsetTop)}px`);
+      const height = Math.round(vv?.height || window.innerHeight);
+      const offsetTop = Math.round(vv?.offsetTop || 0);
+      const innerHeight = Math.round(window.innerHeight);
+
+      document.documentElement.style.setProperty("--app-vh", `${height}px`);
+      document.documentElement.style.setProperty("--app-top", `${offsetTop}px`);
+
+      if (!debugViewport) return;
+      const appShell = document.querySelector(".app-shell");
+      const nav = document.querySelector(".nav");
+      const appRect = appShell?.getBoundingClientRect();
+      const navRect = nav?.getBoundingClientRect();
+
+      setVpStats({
+        innerHeight,
+        vvHeight: height,
+        vvTop: offsetTop,
+        appTop: appRect ? Math.round(appRect.top) : null,
+        appBottom: appRect ? Math.round(appRect.bottom) : null,
+        navTop: navRect ? Math.round(navRect.top) : null,
+        navBottom: navRect ? Math.round(navRect.bottom) : null,
+        navHeight: navRect ? Math.round(navRect.height) : null,
+        screenH: window.screen?.height || null,
+      });
     };
 
     setViewportVars();
@@ -66,7 +92,7 @@ export default function App() {
       window.visualViewport?.removeEventListener("resize", setViewportVars);
       window.visualViewport?.removeEventListener("scroll", setViewportVars);
     };
-  }, []);
+  }, [debugViewport]);
 
 
   const showToast = (msg, dur = 3200) => {
@@ -117,6 +143,33 @@ export default function App() {
 
       {/* Toast */}
       {toast && <div className={`toast ${toast.hiding ? "hide" : ""}`}>{toast.msg}</div>}
+
+      {/* Debug overlay: enable with ?debugViewport=1 */}
+      {debugViewport && vpStats && (
+        <div style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          zIndex: 2000,
+          background: "rgba(0,0,0,0.8)",
+          color: "#8CFF9E",
+          border: "1px solid rgba(140,255,158,0.4)",
+          borderRadius: 8,
+          padding: "8px 10px",
+          fontSize: 11,
+          lineHeight: 1.4,
+          fontFamily: "monospace",
+          whiteSpace: "pre-wrap",
+          maxWidth: "70vw",
+          pointerEvents: "none",
+        }}>
+{`inner:${vpStats.innerHeight}
+vvH:${vpStats.vvHeight} vvTop:${vpStats.vvTop}
+app:${vpStats.appTop}~${vpStats.appBottom}
+nav:${vpStats.navTop}~${vpStats.navBottom} h:${vpStats.navHeight}
+screen:${vpStats.screenH}`}
+        </div>
+      )}
 
       {phase === "onboarding" ? (
         <div className="app-main app-main--full">
