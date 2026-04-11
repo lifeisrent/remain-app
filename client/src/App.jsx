@@ -28,7 +28,7 @@ export default function App() {
   const [writeStep, setWriteStep] = useState("card");
   const [qIdx, setQIdx] = useState(0);
   const [toast, setToast] = useState(null);
-  const [notifyState, setNotifyState] = useState({ shouldPrompt: false, lastCheckAt: null, todayTarget: null, alreadyShown: false });
+  const [notifyState, setNotifyState] = useState({ shouldPrompt: false, lastCheckAt: null, todayTarget: null, alreadyShown: false, mode: null, elapsedMs: null, customToken: null, checkSeq: 0 });
 
   // Load persisted data on mount
   useEffect(() => {
@@ -67,12 +67,17 @@ export default function App() {
       let targetForDebug = hhmm;
       let shouldPrompt = false;
       let alreadyShown = false;
+      let mode = "preset";
+      let elapsedMs = null;
+      let customToken = null;
 
       if (notifyId === "custom" && (user?.notifyAtMs || user?.notifyAtIso)) {
+        mode = "custom";
         const targetMs = Number(user?.notifyAtMs || new Date(user.notifyAtIso).getTime());
+        customToken = targetMs;
         const customKey = `remain:notify:custom:lastShown:${targetMs}`;
         alreadyShown = !!(await Store.get(customKey));
-        const elapsedMs = now.getTime() - targetMs;
+        elapsedMs = now.getTime() - targetMs;
         shouldPrompt = !alreadyShown && elapsedMs >= 0 && elapsedMs <= 15000; // fire only after target time, within 15s
         targetForDebug = new Date(targetMs).toISOString();
       } else {
@@ -82,12 +87,16 @@ export default function App() {
       }
 
       if (!mounted) return;
-      setNotifyState({
+      setNotifyState((prev) => ({
         shouldPrompt,
         lastCheckAt: now.toISOString(),
         todayTarget: targetForDebug,
         alreadyShown,
-      });
+        mode,
+        elapsedMs,
+        customToken,
+        checkSeq: (prev?.checkSeq || 0) + 1,
+      }));
     };
 
     checkNotify();
@@ -167,7 +176,7 @@ export default function App() {
     const target = new Date(targetMs).toISOString();
     const nextUser = { ...user, notifyTime: "custom", notifyAtIso: target, notifyAtMs: targetMs };
     setUser(nextUser);
-    setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: false, todayTarget: target, lastCheckAt: new Date().toISOString() }));
+    setNotifyState((s) => ({ ...s, shouldPrompt: false, alreadyShown: false, todayTarget: target, lastCheckAt: new Date().toISOString(), mode: "custom", elapsedMs: null, customToken: targetMs }));
     await Store.set("remain:user", nextUser);
     showToast(`테스트 알림: ${seconds}초 후`);
   };
@@ -199,7 +208,7 @@ export default function App() {
 
       {debugNotify && (
         <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2400, background: "rgba(0,0,0,.72)", color: "#8CFF9E", border: "1px solid rgba(140,255,158,.35)", borderRadius: 8, padding: "8px 10px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.35 }}>
-{`debugNotify\nnotifyId:${user?.notifyTime || "-"}\ntarget:${notifyState.todayTarget || "-"}\nnow:${new Date().toLocaleTimeString("ko-KR")}\nlast:${notifyState.lastCheckAt ? new Date(notifyState.lastCheckAt).toLocaleTimeString("ko-KR") : "-"}\nshown:${String(notifyState.alreadyShown)}\nprompt:${String(notifyState.shouldPrompt)}`}
+{`debugNotify #${notifyState.checkSeq || 0}\nnotifyId:${user?.notifyTime || "-"}\nmode:${notifyState.mode || "-"}\ntarget:${notifyState.todayTarget || "-"}\ncustomToken:${notifyState.customToken ?? "-"}\nnow:${new Date().toLocaleTimeString("ko-KR")}\nlast:${notifyState.lastCheckAt ? new Date(notifyState.lastCheckAt).toLocaleTimeString("ko-KR") : "-"}\nelapsedMs:${notifyState.elapsedMs ?? "-"}\nshown:${String(notifyState.alreadyShown)}\nprompt:${String(notifyState.shouldPrompt)}`}
         </div>
       )}
 
