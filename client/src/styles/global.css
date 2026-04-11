@@ -88,15 +88,16 @@ body {
   }
 
   .app-shell {
+    position: fixed;
+    inset: 0;
     width: 100vw;
-    min-height: 100svh;
     height: 100vh;   /* fallback */
     height: 100dvh;  /* supported browsers */
     height: var(--app-vh, 100dvh); /* JS-stabilized viewport for Android */
   }
 
   .nav {
-    position: fixed;
+    position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
