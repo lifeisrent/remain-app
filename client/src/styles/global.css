@@ -84,17 +84,19 @@ body {
 @media (max-width: 768px) {
   #root {
     align-items: stretch;
-    justify-content: stretch;
+    justify-content: flex-start;
   }
 
   .app-shell {
     width: 100vw;
-    height: 100dvh;
+    height: 100vh;   /* fallback */
+    min-height: 100vh;
+    height: 100dvh;  /* supported browsers */
   }
 
   .nav {
-    height: calc(78px + env(safe-area-inset-bottom, 0px));
-    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    height: 78px;
+    padding: 0 8px 8px;
   }
 }
 
