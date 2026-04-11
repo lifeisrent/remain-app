@@ -8,7 +8,7 @@ export function ArchiveTab({ active, soul, memories }) {
   const filtered = filter === "all" ? memories : memories.filter((m) => (m.senses || []).includes(filter));
 
   return (
-    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 78, background: "transparent" }}>
+    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 70, background: "transparent" }}>
       <div style={{ padding: "48px 20px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
@@ -84,7 +84,7 @@ export function ArchiveTab({ active, soul, memories }) {
 
 export function PremiumTab({ active, soul }) {
   return (
-    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 78, background: "transparent" }}>
+    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 70, background: "transparent" }}>
       <div style={{ padding: "48px 20px 24px" }}>
         <div style={{ opacity: 0.08, position: "absolute", right: 0, top: 40, pointerEvents: "none" }}><Soul id="orb" size={1.1} color="white" anim="fa" /></div>
         <div style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 10 }}>더 깊은 기록</div>

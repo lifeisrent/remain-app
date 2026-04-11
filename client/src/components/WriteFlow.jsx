@@ -19,7 +19,7 @@ export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, sou
 
 function WriteCard({ active, q, qIdx, setQIdx, soul, onWrite, onBack }) {
   return (
-    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 78, background: "transparent" }}>
+    <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 70, background: "transparent" }}>
       <div style={{ padding: "48px 20px 32px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
           <button onClick={onBack} style={{ background: "var(--w08)", border: "1px solid var(--rim2)", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", color: "var(--w60)", fontSize: 18, display: "grid", placeItems: "center" }}>←</button>

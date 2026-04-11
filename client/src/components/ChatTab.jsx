@@ -59,7 +59,7 @@ export default function ChatTab({ active, user, soul }) {
   };
 
   return (
-    <div className={`screen ${active ? "enter" : "exit-down"}`} style={{ bottom: 78, background: "linear-gradient(165deg,#0E0B1E,#09071A)" }}>
+    <div className={`screen ${active ? "enter" : "exit-down"}`} style={{ bottom: 70, background: "linear-gradient(165deg,#0E0B1E,#09071A)" }}>
       {/* Header */}
       <div style={{ padding: "46px 18px 12px", borderBottom: "1px solid var(--rim)", display: "flex", alignItems: "center", gap: 12, background: "rgba(9,7,26,.92)", backdropFilter: "blur(20px)" }}>
         <div style={{ width: 44, height: 44, borderRadius: 14, background: "var(--cobalt)", display: "grid", placeItems: "center", flexShrink: 0 }}><Soul id="orb" size={0.6} color="white" /></div>
