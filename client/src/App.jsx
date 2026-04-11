@@ -148,19 +148,20 @@ export default function App() {
       {debugViewport && vpStats && (
         <div style={{
           position: "absolute",
-          top: 8,
-          right: 8,
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
           zIndex: 2000,
-          background: "rgba(0,0,0,0.8)",
+          background: "rgba(0,0,0,0.82)",
           color: "#8CFF9E",
           border: "1px solid rgba(140,255,158,0.4)",
           borderRadius: 8,
-          padding: "8px 10px",
-          fontSize: 11,
-          lineHeight: 1.4,
+          padding: "10px 12px",
+          fontSize: 12,
+          lineHeight: 1.45,
           fontFamily: "monospace",
           whiteSpace: "pre-wrap",
-          maxWidth: "70vw",
+          width: "min(82vw, 320px)",
           pointerEvents: "none",
         }}>
 {`inner:${vpStats.innerHeight}
