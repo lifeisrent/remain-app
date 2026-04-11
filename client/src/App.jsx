@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Onboarding from "./components/Onboarding";
 import HomeTab from "./components/HomeTab";
 import WriteFlow from "./components/WriteFlow";
@@ -27,8 +27,6 @@ export default function App() {
   const [writeStep, setWriteStep] = useState("card");
   const [qIdx, setQIdx] = useState(0);
   const [toast, setToast] = useState(null);
-  const [vpStats, setVpStats] = useState(null);
-  const [freezeDebug, setFreezeDebug] = useState(false);
 
   // Load persisted data on mount
   useEffect(() => {
@@ -45,105 +43,6 @@ export default function App() {
       }
     })();
   }, []);
-
-  const debugViewport = useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("debugViewport") === "1" || params.get("debugLayout") === "1";
-  }, []);
-
-  // Debug metrics only (layout no longer depends on JS viewport vars)
-  useEffect(() => {
-    if (!debugViewport) return;
-
-    document.documentElement.setAttribute("data-debug-layout", "1");
-
-    const collectStats = (reason = "tick") => {
-      if (freezeDebug) return;
-      const vv = window.visualViewport;
-      const appShell = document.querySelector(".app-shell");
-      const appMain = document.querySelector(".app-main");
-      const nav = document.querySelector(".nav");
-      const activeScreen = document.querySelector(".screen.enter");
-      const enterScreens = document.querySelectorAll(".screen.enter");
-
-      const appRect = appShell?.getBoundingClientRect();
-      const mainRect = appMain?.getBoundingClientRect();
-      const navRect = nav?.getBoundingClientRect();
-      const screenRect = activeScreen?.getBoundingClientRect();
-
-      const appStyle = appShell ? window.getComputedStyle(appShell) : null;
-      const navStyle = nav ? window.getComputedStyle(nav) : null;
-      const mainStyle = appMain ? window.getComputedStyle(appMain) : null;
-      const screenStyle = activeScreen ? window.getComputedStyle(activeScreen) : null;
-
-      setVpStats({
-        reason,
-        t: new Date().toLocaleTimeString("ko-KR", { hour12: false }),
-        innerW: Math.round(window.innerWidth),
-        innerH: Math.round(window.innerHeight),
-        scrollY: Math.round(window.scrollY || 0),
-        docH: Math.round(document.documentElement.clientHeight),
-        bodyH: Math.round(document.body.clientHeight),
-        vvH: Math.round(vv?.height || window.innerHeight),
-        vvTop: Math.round(vv?.offsetTop || 0),
-        appTop: appRect ? Math.round(appRect.top) : null,
-        appBottom: appRect ? Math.round(appRect.bottom) : null,
-        appH: appRect ? Math.round(appRect.height) : null,
-        appPos: appStyle?.position || null,
-        appTopCss: appStyle?.top || null,
-        appTf: appStyle?.transform || null,
-        mainTop: mainRect ? Math.round(mainRect.top) : null,
-        mainBottom: mainRect ? Math.round(mainRect.bottom) : null,
-        mainPos: mainStyle?.position || null,
-        mainTopCss: mainStyle?.top || null,
-        mainTf: mainStyle?.transform || null,
-        mainPadT: mainStyle?.paddingTop || null,
-        mainPadB: mainStyle?.paddingBottom || null,
-        navTop: navRect ? Math.round(navRect.top) : null,
-        navBottom: navRect ? Math.round(navRect.bottom) : null,
-        navH: navRect ? Math.round(navRect.height) : null,
-        navPos: navStyle?.position || null,
-        navBottomCss: navStyle?.bottom || null,
-        navTf: navStyle?.transform || null,
-        scTop: screenRect ? Math.round(screenRect.top) : null,
-        scBottom: screenRect ? Math.round(screenRect.bottom) : null,
-        scH: screenRect ? Math.round(screenRect.height) : null,
-        scCount: enterScreens.length,
-        scCls: activeScreen?.className || null,
-        scPos: screenStyle?.position || null,
-        scBottomCss: screenStyle?.bottom || null,
-        scTf: screenStyle?.transform || null,
-        scScrollTop: activeScreen?.scrollTop ?? null,
-        scClientH: activeScreen?.clientHeight ?? null,
-        scScrollH: activeScreen?.scrollHeight ?? null,
-      });
-    };
-
-    const onResize = () => collectStats("resize");
-    const onRotate = () => collectStats("orientation");
-    const onVVResize = () => collectStats("vv-resize");
-    const onVVScroll = () => collectStats("vv-scroll");
-    const onScroll = () => collectStats("screen-scroll");
-
-    collectStats("init");
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onRotate);
-    window.visualViewport?.addEventListener("resize", onVVResize);
-    window.visualViewport?.addEventListener("scroll", onVVScroll);
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    const timer = window.setInterval(() => collectStats("interval"), 800);
-
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onRotate);
-      window.visualViewport?.removeEventListener("resize", onVVResize);
-      window.visualViewport?.removeEventListener("scroll", onVVScroll);
-      window.removeEventListener("scroll", onScroll);
-      document.documentElement.removeAttribute("data-debug-layout");
-    };
-  }, [debugViewport, freezeDebug]);
 
 
   const showToast = (msg, dur = 3200) => {
@@ -195,40 +94,6 @@ export default function App() {
       {/* Toast */}
       {toast && <div className={`toast ${toast.hiding ? "hide" : ""}`}>{toast.msg}</div>}
 
-      {/* Debug overlay: enable with ?debugViewport=1 */}
-      {debugViewport && vpStats && (
-        <div style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          zIndex: 2000,
-          background: "rgba(0,0,0,0.82)",
-          color: "#8CFF9E",
-          border: "1px solid rgba(140,255,158,0.4)",
-          borderRadius: 8,
-          padding: "10px 12px",
-          fontSize: 12,
-          lineHeight: 1.45,
-          fontFamily: "monospace",
-          whiteSpace: "pre-wrap",
-          width: "min(82vw, 320px)",
-          pointerEvents: "auto",
-        }} onClick={() => setFreezeDebug((v) => !v)}>
-{`[tap: ${freezeDebug ? "resume" : "freeze"}] ${vpStats.t} ${vpStats.reason}
-vw:${vpStats.innerW} vh:${vpStats.innerH} y:${vpStats.scrollY} doc:${vpStats.docH} body:${vpStats.bodyH}
-vvH:${vpStats.vvH} vvTop:${vpStats.vvTop}
-app:${vpStats.appTop}~${vpStats.appBottom} h:${vpStats.appH}
-appCss:${vpStats.appPos} top:${vpStats.appTopCss} tf:${vpStats.appTf}
-main:${vpStats.mainTop}~${vpStats.mainBottom} pt:${vpStats.mainPadT} pb:${vpStats.mainPadB}
-mainCss:${vpStats.mainPos} top:${vpStats.mainTopCss} tf:${vpStats.mainTf}
-nav:${vpStats.navTop}~${vpStats.navBottom} h:${vpStats.navH}
-navCss:${vpStats.navPos} bottom:${vpStats.navBottomCss} tf:${vpStats.navTf}
-scr:${vpStats.scTop}~${vpStats.scBottom} h:${vpStats.scH} cnt:${vpStats.scCount}
-scrCss:${vpStats.scPos} bottom:${vpStats.scBottomCss} tf:${vpStats.scTf}
-scroll:${vpStats.scScrollTop}/${vpStats.scClientH}/${vpStats.scScrollH}`}
-        </div>
-      )}
 
       {phase === "onboarding" ? (
         <div className="app-main app-main--full">

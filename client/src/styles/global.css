@@ -9,11 +9,6 @@
   box-sizing: border-box;
 }
 
-:root[data-debug-layout="1"] .app-shell { outline: 2px solid rgba(255, 80, 80, 0.7); }
-:root[data-debug-layout="1"] .app-main { outline: 2px solid rgba(80, 180, 255, 0.7); }
-:root[data-debug-layout="1"] .nav { outline: 2px solid rgba(120, 255, 140, 0.8); }
-:root[data-debug-layout="1"] .screen.enter { outline: 1px dashed rgba(255, 255, 255, 0.45); }
-
 :root {
   /* Colors */
   --night: #09071a;
