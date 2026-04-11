@@ -67,6 +67,7 @@ body {
   background: var(--night);
 }
 
+/* Desktop/large screen preview keeps fixed phone frame */
 @media (max-height: 844px) {
   .app-shell {
     height: 100dvh;
@@ -76,6 +77,24 @@ body {
 @media (max-width: 390px) {
   .app-shell {
     width: 100vw;
+  }
+}
+
+/* Real mobile: fill viewport so bottom nav sits on true bottom */
+@media (max-width: 768px) {
+  #root {
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .app-shell {
+    width: 100vw;
+    height: 100dvh;
+  }
+
+  .nav {
+    height: calc(78px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   }
 }
 
