@@ -89,12 +89,17 @@ body {
 
   .app-shell {
     width: 100vw;
+    min-height: 100svh;
     height: 100vh;   /* fallback */
-    min-height: 100vh;
     height: 100dvh;  /* supported browsers */
   }
 
   .nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
     height: 78px;
     padding: 0 8px 8px;
   }
