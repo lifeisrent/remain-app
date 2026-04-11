@@ -9,7 +9,12 @@ import { dirname, join } from "path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || "127.0.0.1";
 const IS_PROD = process.env.NODE_ENV === "production";
+const CLIENT_URLS = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((v) => v.trim())
+  .filter(Boolean);
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -17,7 +22,7 @@ if (IS_PROD) {
   app.use(express.static(join(__dirname, "public")));
 } else {
   app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: CLIENT_URLS,
     methods: ["POST", "GET"],
   }));
 }
@@ -63,7 +68,8 @@ if (IS_PROD) {
   app.get("*", (_req, res) => res.sendFile(join(__dirname, "public", "index.html")));
 }
 
-createServer(app).listen(PORT, () => {
-  console.log(`\n🌒 Remain Server running at http://localhost:${PORT}`);
-  console.log(`   API Key: ${process.env.ANTHROPIC_API_KEY ? "✓ 설정됨" : "✗ 없음"}\n`);
+createServer(app).listen(PORT, HOST, () => {
+  console.log(`\n🌒 Remain Server running at http://${HOST}:${PORT}`);
+  console.log(`   API Key: ${process.env.ANTHROPIC_API_KEY ? "✓ 설정됨" : "✗ 없음"}`);
+  console.log(`   CORS Origins: ${CLIENT_URLS.join(", ")}\n`);
 });

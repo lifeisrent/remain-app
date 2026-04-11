@@ -39,8 +39,9 @@ cp server/.env.example server/.env
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxx
+HOST=0.0.0.0
 PORT=3001
-CLIENT_URL=http://localhost:5173
+CLIENT_URLS=http://localhost:5173,http://<내_LAN_IP>:5173
 ```
 
 **API 키 발급:** https://console.anthropic.com/
@@ -54,6 +55,27 @@ npm run dev
 - 클라이언트: http://localhost:5173
 - 서버: http://localhost:3001
 - 헬스체크: http://localhost:3001/api/health
+
+### 4. 로컬 네트워크(LAN)에서 접속하기
+
+1. 개발 PC의 IP 확인
+   - macOS/Linux: `ip a` 또는 `ifconfig`
+   - Windows: `ipconfig`
+2. `server/.env`에서 `HOST=0.0.0.0` 확인
+3. `CLIENT_URLS`에 LAN URL 추가
+   - 예: `CLIENT_URLS=http://localhost:5173,http://192.168.0.10:5173`
+4. 루트 `.env`(선택)에 아래 값 설정
+
+```env
+VITE_HOST=0.0.0.0
+VITE_PORT=5173
+VITE_API_PROXY_TARGET=http://localhost:3001
+```
+
+5. 실행 후 다른 기기에서 접속
+   - `http://<내_LAN_IP>:5173`
+
+> 참고: 같은 Wi-Fi/로컬 네트워크에 있어야 하며, OS 방화벽에서 5173/3001 포트를 허용해야 합니다.
 
 ---
 
@@ -189,7 +211,8 @@ remain-app/
 |------|------|--------|------|
 | `ANTHROPIC_API_KEY` | ✓ | — | Anthropic API 키 |
 | `PORT` | | `3001` | 서버 포트 |
-| `CLIENT_URL` | | `http://localhost:5173` | CORS 허용 URL (개발용) |
+| `HOST` | | `127.0.0.1` | 서버 바인딩 호스트 (`0.0.0.0`이면 LAN 허용) |
+| `CLIENT_URLS` | | `http://localhost:5173` | CORS 허용 URL 목록(쉼표 구분) |
 | `NODE_ENV` | | `development` | `production` 설정 시 정적 파일 서빙 |
 
 ---
