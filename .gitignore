@@ -23,5 +23,8 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Local python venv
+server/.venv-whisper/
+
 # Docker
 .dockerignore
