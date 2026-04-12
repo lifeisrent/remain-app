@@ -21,10 +21,21 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
   const [audioErr, setAudioErr] = useState("");
   const [audioSec, setAudioSec] = useState(0);
   const [waveLevels, setWaveLevels] = useState(Array(30).fill(8));
+  const [audioDebug, setAudioDebug] = useState({
+    state: "idle",
+    reason: "-",
+    status: "-",
+    provider: "-",
+    durationMs: "-",
+    blobBytes: 0,
+    at: "-",
+  });
 
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState({});
   const [savingArchive, setSavingArchive] = useState(false);
+
+  const debugAudio = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debugAudio") === "1";
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -156,6 +167,7 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
   const startVoiceRecord = async () => {
     try {
       setAudioErr("");
+      setAudioDebug((d) => ({ ...d, state: "recording", reason: "start", at: new Date().toLocaleTimeString("ko-KR") }));
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -261,6 +273,7 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
       setAudioErr("마이크 권한을 확인해 주세요.");
       setAudioState("error");
       setRec(false);
+      setAudioDebug((d) => ({ ...d, state: "error", reason: `record-start:${err?.message || "permission"}`, at: new Date().toLocaleTimeString("ko-KR") }));
     }
   };
 
@@ -280,9 +293,11 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
     try {
       setAudioErr("");
       setAudioState("transcribing");
+      setAudioDebug((d) => ({ ...d, state: "transcribing", reason: autoSend ? "auto-send" : "compose", blobBytes: blob?.size || 0, at: new Date().toLocaleTimeString("ko-KR") }));
       const r = await transcribeAudio(blob, { language: "ko", fileName: `chat-${Date.now()}.webm` });
       const t = (r?.text || "").trim();
       setWaveLevels(Array(30).fill(8));
+      setAudioDebug((d) => ({ ...d, state: "ok", reason: autoSend ? "auto-send" : "compose", status: "200", provider: r?.provider || "-", durationMs: r?.durationMs ?? "-", at: new Date().toLocaleTimeString("ko-KR") }));
       if (t) {
         if (autoSend) {
           await send(t);
@@ -293,9 +308,12 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
       }
       setAudioState("idle");
     } catch (err) {
-      setAudioErr(err?.message || "음성 변환에 실패했어요.");
+      const status = err?.status || "-";
+      const msg = err?.message || "음성 변환에 실패했어요.";
+      setAudioErr(msg);
       setAudioState("error");
       setWaveLevels(Array(30).fill(8));
+      setAudioDebug((d) => ({ ...d, state: "error", reason: msg, status: String(status), at: new Date().toLocaleTimeString("ko-KR") }));
     }
   };
 
@@ -558,6 +576,12 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
             <div style={{ marginTop: 4, fontFamily: "var(--f-b)", fontSize: 11, color: audioState === "error" ? "#ff8f8f" : "var(--w60)" }}>
               {audioState === "transcribing" && "음성 변환 중…"}
               {audioState === "error" && (audioErr || "음성 변환 실패")}
+            </div>
+          )}
+
+          {debugAudio && (
+            <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 10, color: "#8CFF9E", lineHeight: 1.4 }}>
+              {`debugAudio state=${audioDebug.state} status=${audioDebug.status} reason=${audioDebug.reason} provider=${audioDebug.provider} durationMs=${audioDebug.durationMs} blob=${audioDebug.blobBytes} at=${audioDebug.at}`}
             </div>
           )}
         </div>

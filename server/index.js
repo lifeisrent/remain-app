@@ -71,8 +71,11 @@ const transcribeLimiter = rateLimit({
 });
 
 app.post("/api/transcribe", transcribeLimiter, upload.single("audio"), async (req, res) => {
+  const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const startedAt = Date.now();
+
   try {
-    if (!req.file) return res.status(400).json({ error: "audio 파일이 필요합니다." });
+    if (!req.file) return res.status(400).json({ error: "audio 파일이 필요합니다.", reqId });
 
     const defaultProvider = process.env.NODE_ENV === "production" ? "openai" : "local";
     const provider = (process.env.WHISPER_PROVIDER || defaultProvider).toLowerCase();
@@ -89,7 +92,7 @@ app.post("/api/transcribe", transcribeLimiter, upload.single("audio"), async (re
 
     if (provider === "openai") {
       const openaiKey = process.env.OPENAI_API_KEY;
-      if (!openaiKey) return res.status(500).json({ error: "OPENAI_API_KEY가 설정되지 않았습니다." });
+      if (!openaiKey) return res.status(500).json({ error: "OPENAI_API_KEY가 설정되지 않았습니다.", reqId });
       endpoint = process.env.OPENAI_TRANSCRIBE_URL || "https://api.openai.com/v1/audio/transcriptions";
       modelName = process.env.OPENAI_WHISPER_MODEL || "whisper-1";
       headers = { Authorization: `Bearer ${openaiKey}` };
@@ -103,7 +106,16 @@ app.post("/api/transcribe", transcribeLimiter, upload.single("audio"), async (re
 
     form.append("model", modelName);
 
-    const startedAt = Date.now();
+    console.log("[Transcribe Start]", {
+      reqId,
+      provider,
+      modelName,
+      endpoint,
+      mime: req.file.mimetype,
+      bytes: req.file.size,
+      language,
+    });
+
     const resp = await fetch(endpoint, {
       method: "POST",
       headers,
@@ -119,19 +131,34 @@ app.post("/api/transcribe", transcribeLimiter, upload.single("audio"), async (re
     }
 
     if (!resp.ok) {
-      console.error("[Transcribe Error]", { provider, status: resp.status, body: parsed });
-      return res.status(resp.status).json({ error: parsed.error?.message || parsed.error || "음성 변환 실패" });
+      console.error("[Transcribe Error]", {
+        reqId,
+        provider,
+        status: resp.status,
+        durationMs: Date.now() - startedAt,
+        body: parsed,
+      });
+      return res.status(resp.status).json({ error: parsed.error?.message || parsed.error || "음성 변환 실패", reqId });
     }
 
     const text = parsed.text || parsed.result || parsed.transcript || "";
+    const durationMs = Date.now() - startedAt;
+    console.log("[Transcribe OK]", { reqId, provider, durationMs, textLen: text.length });
+
     return res.json({
       text,
       provider,
-      durationMs: Date.now() - startedAt,
+      durationMs,
+      reqId,
     });
   } catch (err) {
-    console.error("[Transcribe Server Error]", err);
-    return res.status(500).json({ error: "음성 변환 중 서버 오류" });
+    console.error("[Transcribe Server Error]", {
+      reqId,
+      durationMs: Date.now() - startedAt,
+      message: err?.message,
+      stack: err?.stack,
+    });
+    return res.status(500).json({ error: "음성 변환 중 서버 오류", reqId });
   }
 });
 

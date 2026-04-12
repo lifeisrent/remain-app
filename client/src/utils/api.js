@@ -44,7 +44,10 @@ export async function transcribeAudio(blob, { language = "ko", fileName = "recor
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data?.error || `HTTP ${res.status}`);
+    const err = new Error(data?.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.payload = data;
+    throw err;
   }
   return data;
 }
