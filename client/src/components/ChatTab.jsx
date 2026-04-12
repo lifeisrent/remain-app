@@ -25,6 +25,7 @@ export default function ChatTab({ active, user, soul }) {
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const timerRef = useRef(null);
+  const discardRef = useRef(false);
   const maxSec = 220;
 
   useEffect(() => {
@@ -155,6 +156,14 @@ export default function ChatTab({ active, user, soul }) {
           streamRef.current = null;
         }
 
+        const shouldDiscard = discardRef.current;
+        discardRef.current = false;
+
+        if (shouldDiscard) {
+          setAudioState("idle");
+          return;
+        }
+
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         if (blob.size > 0) runTranscribe(blob);
         else setAudioState("idle");
@@ -178,13 +187,16 @@ export default function ChatTab({ active, user, soul }) {
     }
   };
 
-  const stopVoiceRecord = () => {
+  const stopVoiceRecord = ({ discard = false } = {}) => {
     try {
+      discardRef.current = discard;
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
     } catch {}
   };
+
+  const cancelVoiceRecord = () => stopVoiceRecord({ discard: true });
 
   const runTranscribe = async (blob) => {
     try {
@@ -208,6 +220,12 @@ export default function ChatTab({ active, user, soul }) {
     if (audioState === "recording") stopVoiceRecord();
     else startVoiceRecord();
   };
+
+  const waveBars = Array.from({ length: 30 }, (_, i) => {
+    const seed = ((i * 13 + audioSec * 7) % 100) / 100;
+    const h = 8 + Math.round(seed * 20);
+    return { key: `w-${i}`, height: h, delay: `${(i % 10) * 0.06}s` };
+  });
 
   return (
     <div className={`screen ${active ? "enter" : "exit-down"}`} style={{ bottom: 0, background: "linear-gradient(165deg,#0E0B1E,#09071A)" }}>
@@ -247,60 +265,125 @@ export default function ChatTab({ active, user, soul }) {
           {MODES.map((m, i) => <button key={m} className={`mode-chip ${mode === i ? "on" : "off"}`} onClick={() => setMode(i)}>{m}</button>)}
         </div>
 
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 9 }}>
-          <div style={{ flex: 1, background: "var(--surface)", border: "1.5px solid var(--rim2)", borderRadius: 22, display: "flex", alignItems: "flex-end", gap: 7, padding: "9px 13px" }}>
-            <textarea
-              ref={inputRef}
-              rows={1}
-              placeholder="지금 떠오르는 이야기를 자유롭게 적어보세요."
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
+        {audioState === "recording" ? (
+          <div style={{
+            background: "rgba(255,255,255,.04)",
+            border: "1.5px solid var(--rim2)",
+            borderRadius: 22,
+            padding: "12px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minHeight: 56,
+          }}>
+            <button
+              onClick={cancelVoiceRecord}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                border: "none",
+                background: "var(--w08)",
+                color: "var(--w80)",
+                fontSize: 20,
+                cursor: "pointer",
+                flexShrink: 0,
               }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
+              title="녹음 취소"
+            >
+              ×
+            </button>
+
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 4, overflow: "hidden", height: 24 }}>
+              {waveBars.map((bar) => (
+                <span
+                  key={bar.key}
+                  style={{
+                    width: 4,
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,.7)",
+                    height: `${bar.height}px`,
+                    display: "inline-block",
+                    animation: "pulse 1s infinite",
+                    animationDelay: bar.delay,
+                  }}
+                />
+              ))}
+            </div>
+
+            <button
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: "white",
+                border: "none",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
               }}
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", resize: "none", fontFamily: "var(--f-b)", fontSize: 14, fontWeight: 500, color: "var(--w95)", lineHeight: 1.5, maxHeight: 96, scrollbarWidth: "none" }}
-            />
+              onClick={() => stopVoiceRecord()}
+              title="녹음 종료"
+            >
+              <span style={{ color: "var(--night)", fontSize: 20, fontWeight: 900 }}>↑</span>
+            </button>
           </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 9 }}>
+            <div style={{ flex: 1, background: "var(--surface)", border: "1.5px solid var(--rim2)", borderRadius: 22, display: "flex", alignItems: "flex-end", gap: 7, padding: "9px 13px" }}>
+              <textarea
+                ref={inputRef}
+                rows={1}
+                placeholder="지금 떠오르는 이야기를 자유롭게 적어보세요."
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                style={{ flex: 1, background: "transparent", border: "none", outline: "none", resize: "none", fontFamily: "var(--f-b)", fontSize: 14, fontWeight: 500, color: "var(--w95)", lineHeight: 1.5, maxHeight: 96, scrollbarWidth: "none" }}
+              />
+            </div>
 
-          <button
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: "50%",
-              background: rec ? "var(--coral)" : "var(--w08)",
-              border: "none",
-              cursor: loading || audioState === "transcribing" ? "default" : "pointer",
-              display: "grid",
-              placeItems: "center",
-              flexShrink: 0,
-              transition: "all .2s",
-            }}
-            onClick={toggleVoice}
-            disabled={loading || audioState === "transcribing"}
-            title={rec ? "녹음 종료" : "음성 입력"}
-          >
-            <span style={{ color: "white", fontSize: 16 }}>{rec ? "■" : "🎙"}</span>
-          </button>
+            <button
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: "var(--w08)",
+                border: "none",
+                cursor: loading || audioState === "transcribing" ? "default" : "pointer",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+                transition: "all .2s",
+              }}
+              onClick={toggleVoice}
+              disabled={loading || audioState === "transcribing"}
+              title="음성 입력"
+            >
+              <span style={{ color: "white", fontSize: 16 }}>🎙</span>
+            </button>
 
-          <button
-            style={{ width: 44, height: 44, borderRadius: "50%", background: input.trim() && !loading ? "var(--cobalt)" : "var(--w08)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", display: "grid", placeItems: "center", flexShrink: 0, transition: "all .2s" }}
-            onClick={() => send()}
-            disabled={!input.trim() || loading}
-          >
-            <span style={{ color: "white", fontSize: 18 }}>↑</span>
-          </button>
-        </div>
+            <button
+              style={{ width: 44, height: 44, borderRadius: "50%", background: input.trim() && !loading ? "white" : "var(--w08)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", display: "grid", placeItems: "center", flexShrink: 0, transition: "all .2s" }}
+              onClick={() => send()}
+              disabled={!input.trim() || loading}
+            >
+              <span style={{ color: input.trim() && !loading ? "var(--night)" : "white", fontSize: 20, fontWeight: 900 }}>↑</span>
+            </button>
+          </div>
+        )}
 
-        {(audioState === "recording" || audioState === "transcribing" || audioState === "error") && (
+        {(audioState === "transcribing" || audioState === "error") && (
           <div style={{ marginTop: 4, fontFamily: "var(--f-b)", fontSize: 11, color: audioState === "error" ? "#ff8f8f" : "var(--w60)" }}>
-            {audioState === "recording" && `녹음 중… ${audioSec}s`}
             {audioState === "transcribing" && "음성 변환 중…"}
             {audioState === "error" && (audioErr || "음성 변환 실패")}
           </div>
