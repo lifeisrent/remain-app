@@ -13,7 +13,15 @@ import { formatDateKey, getNotifyTimeValue, isWithinNotifyWindow } from "./utils
 
 function NavItem({ icon, label, on, onClick }) {
   return (
-    <div className={`nav-item ${on ? "on" : ""}`} onClick={onClick}>
+    <div
+      className={`nav-item ${on ? "on" : ""}`}
+      onClick={onClick}
+      onContextMenu={(e) => e.preventDefault()}
+      onTouchStart={(e) => {
+        // Android long-press 검색/컨텍스트 메뉴 방지
+        e.preventDefault();
+      }}
+    >
       {icon}
       <span className="nav-label">{label}</span>
     </div>
