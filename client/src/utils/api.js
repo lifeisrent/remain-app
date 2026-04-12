@@ -73,15 +73,31 @@ export async function askWriteFollowup({ question, text, senses = [] }) {
       max_tokens: 300,
     });
 
-    const raw = data.content?.[0]?.text || "{\"followup\":\"\",\"qr\":[]}";
-    const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-    return {
-      followup: parsed?.followup || "",
-      qr: Array.isArray(parsed?.qr) ? parsed.qr.slice(0, 3) : [],
-    };
+    const raw = data.content?.[0]?.text || "";
+    const cleaned = raw.replace(/```json|```/g, "").trim();
+
+    try {
+      const parsed = JSON.parse(cleaned);
+      return {
+        followup: (parsed?.followup || "").trim(),
+        qr: Array.isArray(parsed?.qr) ? parsed.qr.slice(0, 3) : [],
+        error: null,
+      };
+    } catch {
+      // fallback: model might return plain text instead of strict JSON
+      const fallback = cleaned
+        .split("\n")
+        .map((v) => v.trim())
+        .find(Boolean) || "";
+      return {
+        followup: fallback,
+        qr: [],
+        error: fallback ? "json-parse-fallback" : "empty-response",
+      };
+    }
   } catch (err) {
     console.error("[askWriteFollowup]", err);
-    return { followup: "", qr: [] };
+    return { followup: "", qr: [], error: err?.message || "request-failed" };
   }
 }
 

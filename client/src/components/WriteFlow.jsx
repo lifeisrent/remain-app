@@ -216,11 +216,11 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setCoachQr(r.qr || []);
       setCoachState("ready");
       setCoachAskCount((c) => c + 1);
-      setCoachDebug((d) => ({ ...d, lastSkip: "-", lastFollowupLen: (r.followup || "").length, lastQrCount: (r.qr || []).length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
+      setCoachDebug((d) => ({ ...d, lastSkip: r?.error || "-", lastFollowupLen: (r.followup || "").length, lastQrCount: (r.qr || []).length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     } else {
       setCoachState("error");
       setCoachErr("후속 질문 생성에 실패했어요.");
-      setCoachDebug((d) => ({ ...d, lastFollowupLen: 0, lastQrCount: 0, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
+      setCoachDebug((d) => ({ ...d, lastSkip: r?.error || "empty-followup", lastFollowupLen: 0, lastQrCount: 0, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     }
   };
   const toggleS = (s) => setSenses((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
