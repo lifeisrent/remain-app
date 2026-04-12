@@ -127,10 +127,15 @@ async function callProxy(body, path = "chat") {
  * @param {Array} history  - [{role, content}]
  * @param {number} modeIdx - 0~3
  */
-export async function askClaude(history, modeIdx = 0) {
+export async function askClaude(history, modeIdx = 0, customTone = "") {
   try {
+    const custom = (customTone || "").trim();
+    const customCtx = custom
+      ? `\n사용자 맞춤 톤 요청(기본 톤 우선, 충돌 시 기본 톤 유지): ${custom}`
+      : "";
+
     const data = await callProxy({
-      system: ARCHIVIST_SYSTEM + "\n추가 지시: " + MODES_CTX[modeIdx],
+      system: ARCHIVIST_SYSTEM + "\n추가 지시: " + MODES_CTX[modeIdx] + customCtx,
       messages: history,
     });
     const raw = data.content?.[0]?.text || "";

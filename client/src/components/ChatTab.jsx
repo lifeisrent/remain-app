@@ -3,7 +3,7 @@ import Soul from "./Soul";
 import { askClaude, transcribeAudio } from "../utils/api";
 import Store from "../utils/storage";
 
-const MODES = ["자유 대화", "감정 탐색", "편지 쓰기", "정리 중"];
+const MODES = ["자유 대화", "감정 탐색", "편지 쓰기", "맞춤형"];
 const SHOW_QUICK_REPLIES = false;
 
 export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
@@ -13,6 +13,8 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState(0);
   const [ready, setReady] = useState(false);
+  const [customTone, setCustomTone] = useState("");
+  const [showToneModal, setShowToneModal] = useState(false);
 
   const [rec, setRec] = useState(false);
   const [audioState, setAudioState] = useState("idle"); // idle | recording | transcribing | error
@@ -91,7 +93,7 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
       : "새 사용자가 접속했습니다. 따뜻하게 맞이해주세요.";
 
     const h = [{ role: "user", content: q }];
-    const r = await askClaude(h, 0);
+    const r = await askClaude(h, 0, customTone);
     const ai = {
       id: Date.now() + 1,
       role: "ai",
@@ -121,7 +123,7 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
     setLoading(true);
 
     const nh = [...hist, { role: "user", content: txt }];
-    const r = await askClaude(nh, mode);
+    const r = await askClaude(nh, mode, customTone);
     const ai = {
       id: Date.now() + 1,
       role: "ai",
@@ -145,6 +147,10 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
     setReady(false);
     setSelectMode(false);
     setSelectedIds({});
+  };
+
+  const openToneModal = () => {
+    if (mode === 3) setShowToneModal(true);
   };
 
   const startVoiceRecord = async () => {
@@ -406,7 +412,30 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
       {!selectMode && (
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(0deg,rgba(9,7,26,1),rgba(9,7,26,.9))", backdropFilter: "blur(20px)", borderTop: "1px solid var(--rim)", padding: "10px 14px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 5 }}>
-            {MODES.map((m, i) => <button key={m} className={`mode-chip ${mode === i ? "on" : "off"}`} onClick={() => setMode(i)}>{m}</button>)}
+            {MODES.map((m, i) => (
+              <button
+                key={m}
+                className={`mode-chip ${mode === i ? "on" : "off"}`}
+                onClick={() => setMode(i)}
+                onContextMenu={(e) => { e.preventDefault(); if (i === 3) setShowToneModal(true); }}
+                onTouchStart={(e) => {
+                  if (i !== 3) return;
+                  const target = e.currentTarget;
+                  target.__lp = setTimeout(() => setShowToneModal(true), 420);
+                }}
+                onTouchEnd={(e) => {
+                  const target = e.currentTarget;
+                  if (target.__lp) { clearTimeout(target.__lp); target.__lp = null; }
+                }}
+                onTouchCancel={(e) => {
+                  const target = e.currentTarget;
+                  if (target.__lp) { clearTimeout(target.__lp); target.__lp = null; }
+                }}
+                title={i === 3 ? "길게 눌러 맞춤 설정" : undefined}
+              >
+                {m}
+              </button>
+            ))}
           </div>
 
           {audioState === "recording" ? (
@@ -531,6 +560,56 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
               {audioState === "error" && (audioErr || "음성 변환 실패")}
             </div>
           )}
+        </div>
+      )}
+
+      {showToneModal && (
+        <div
+          onClick={() => setShowToneModal(false)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 2600,
+            background: "rgba(0,0,0,.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 18,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="card-dark"
+            style={{ width: "100%", maxWidth: 420, borderRadius: 18, padding: 16 }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontFamily: "var(--f-d)", fontSize: 20, color: "white" }}>맞춤형 톤 설정</div>
+              <button onClick={() => setShowToneModal(false)} style={{ border: "none", background: "var(--w08)", color: "var(--w80)", width: 30, height: 30, borderRadius: "50%", cursor: "pointer", fontSize: 18 }}>×</button>
+            </div>
+            <div style={{ fontFamily: "var(--f-b)", fontSize: 12, color: "var(--w60)", lineHeight: 1.6, marginBottom: 10 }}>
+              아카이비스트의 톤을 맞춤으로 정해주세요.
+            </div>
+            <textarea
+              value={customTone}
+              onChange={(e) => setCustomTone(e.target.value.slice(0, 200))}
+              placeholder="예) 공감은 짧게 하고, 핵심을 2~3문장으로 정리해줘"
+              style={{ width: "100%", minHeight: 140, maxHeight: 220, resize: "vertical", borderRadius: 12, border: "1px solid var(--rim2)", background: "var(--w08)", color: "white", padding: "12px", fontFamily: "var(--f-b)", fontSize: 13, lineHeight: 1.55, outline: "none" }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+              <button
+                onClick={() => setCustomTone("")}
+                style={{ border: "1px solid var(--rim2)", background: "transparent", color: "var(--w60)", borderRadius: 10, padding: "8px 10px", cursor: "pointer", fontFamily: "var(--f-b)", fontSize: 12, fontWeight: 700 }}
+              >
+                초기화
+              </button>
+              <button
+                onClick={() => setShowToneModal(false)}
+                style={{ border: "none", background: "white", color: "var(--night)", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontFamily: "var(--f-b)", fontSize: 12, fontWeight: 700 }}
+              >
+                적용
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
