@@ -64,6 +64,14 @@ export async function uploadImage(file) {
 }
 
 export async function askWriteFollowup({ question, text, senses = [] }) {
+  const localFallback = () => {
+    const sense = (senses && senses[0]) || "감정";
+    return {
+      followup: `${sense} 기준으로, 방금 장면에서 가장 또렷했던 한 가지를 더 적어볼까요?`,
+      qr: ["그때 몸이 먼저 반응했어.", "소리/냄새가 먼저 떠올랐어.", "생각보다 별일 아니었어."],
+    };
+  };
+
   try {
     const payload = `[# 질문]\n${question || ""}\n\n[# 작성 중 텍스트]\n${text || ""}\n\n[# 선택한 감각 태그]\n${(senses || []).join(", ") || "없음"}\n\n[# 요청]\n이 기록을 한 단계 깊게 만들 수 있는 후속 질문 1개와 짧은 이어쓰기 선택지를 만들어주세요.`;
 
@@ -78,8 +86,13 @@ export async function askWriteFollowup({ question, text, senses = [] }) {
 
     try {
       const parsed = JSON.parse(cleaned);
+      const followup = (parsed?.followup || "").trim();
+      if (!followup) {
+        const f = localFallback();
+        return { ...f, error: "empty-followup-fallback" };
+      }
       return {
-        followup: (parsed?.followup || "").trim(),
+        followup,
         qr: Array.isArray(parsed?.qr) ? parsed.qr.slice(0, 3) : [],
         error: null,
       };
@@ -89,15 +102,14 @@ export async function askWriteFollowup({ question, text, senses = [] }) {
         .split("\n")
         .map((v) => v.trim())
         .find(Boolean) || "";
-      return {
-        followup: fallback,
-        qr: [],
-        error: fallback ? "json-parse-fallback" : "empty-response",
-      };
+      if (fallback) return { followup: fallback, qr: [], error: "json-parse-fallback" };
+      const f = localFallback();
+      return { ...f, error: "empty-response-fallback" };
     }
   } catch (err) {
     console.error("[askWriteFollowup]", err);
-    return { followup: "", qr: [], error: err?.message || "request-failed" };
+    const f = localFallback();
+    return { ...f, error: `request-fallback:${err?.message || "request-failed"}` };
   }
 }
 
@@ -107,8 +119,12 @@ async function callProxy(body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data?.error || data?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
 }
 
 /**
