@@ -218,9 +218,14 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setCoachAskCount((c) => c + 1);
       setCoachDebug((d) => ({ ...d, lastSkip: r?.error || "-", lastFollowupLen: (r.followup || "").length, lastQrCount: (r.qr || []).length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     } else {
-      setCoachState("error");
-      setCoachErr("후속 질문 생성에 실패했어요.");
-      setCoachDebug((d) => ({ ...d, lastSkip: r?.error || "empty-followup", lastFollowupLen: 0, lastQrCount: 0, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
+      const sense = senses?.[0] || "감정";
+      const fallbackFollowup = `${sense} 기준으로, 방금 장면에서 가장 또렷했던 한 가지를 더 적어볼까요?`;
+      const fallbackQr = ["그때 몸이 먼저 반응했어.", "소리/냄새가 먼저 떠올랐어.", "생각보다 별일 아니었어."];
+      setCoachFollowup(fallbackFollowup);
+      setCoachQr(fallbackQr);
+      setCoachState("ready");
+      setCoachAskCount((c) => c + 1);
+      setCoachDebug((d) => ({ ...d, lastSkip: `component-fallback:${r?.error || "empty-followup"}`, lastFollowupLen: fallbackFollowup.length, lastQrCount: fallbackQr.length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     }
   };
   const toggleS = (s) => setSenses((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
