@@ -256,7 +256,7 @@ export default function App() {
               onUpdateNotifyTime={updateNotifyTime}
               onSetNotifyAfterSeconds={setNotifyAfterSeconds}
               onBack={() => { setWriteStep("card"); setTab("home"); }} />
-            <ChatTab active={tab === "chat"} user={user} soul={soul} />
+            <ChatTab active={tab === "chat"} user={user} soul={soul} onSaveChatArchive={saveMemory} />
             <ArchiveTab active={tab === "archive"} soul={soul} memories={memories} />
             <PremiumTab active={tab === "premium"} soul={soul} />
           </div>
