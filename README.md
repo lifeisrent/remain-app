@@ -202,9 +202,9 @@ remain-app/
 
 Whisper 호환 음성 인식 엔드포인트입니다. (dev / docker 공통)
 
-> 배포(Railway) 권장: `WHISPER_PROVIDER=openai`
-> 
-> 로컬 개발 권장: `WHISPER_PROVIDER=local` + 로컬 whisper 서버 실행
+> 배포(Railway) 권장 2안:
+> - 빠른 구성: `WHISPER_PROVIDER=openai`
+> - OpenAI 미사용: `whisper-service/`를 Railway에 별도 서비스로 배포 후 `WHISPER_PROVIDER=local`
 
 - Content-Type: `multipart/form-data`
 - field: `audio` (webm/wav/mp3 등)
@@ -220,6 +220,23 @@ Whisper 호환 음성 인식 엔드포인트입니다. (dev / docker 공통)
 ```
 
 ---
+
+### Railway에서 OpenAI 없이 Whisper 쓰기 (Service 분리)
+
+1. 같은 프로젝트에 새 서비스 추가
+   - Source: 동일 GitHub repo
+   - Root Directory: `whisper-service`
+   - Builder: Dockerfile
+2. whisper 서비스 변수(선택)
+   - `WHISPER_LOCAL_MODEL=whisper-1`
+   - `WHISPER_FASTER_MODEL=small`
+   - `WHISPER_DEVICE=cpu`
+3. remain-app 서비스 변수
+   - `WHISPER_PROVIDER=local`
+   - `WHISPER_LOCAL_URL=http://<whisper-service-internal-or-public-url>/v1/audio/transcriptions`
+4. 배포 후 점검
+   - whisper 서비스 `/health` 응답 확인
+   - 앱에서 음성 변환 시 provider=`local` 확인
 
 ## 기능
 
