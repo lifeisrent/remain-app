@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Soul from "./Soul";
 import { QUESTIONS, SENSE_COLORS, TIMES } from "../utils/constants";
-import { transcribeAudio, uploadImage } from "../utils/api";
+import { transcribeAudio, uploadImage, askWriteFollowup } from "../utils/api";
 
 export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, soul, saveMemory, user, onUpdateNotifyTime, onSetNotifyAfterSeconds, onBack }) {
   if (!active) return null;
@@ -122,6 +122,11 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   const [imageState, setImageState] = useState("idle"); // idle | uploading | error
   const [imageErr, setImageErr] = useState("");
   const [photos, setPhotos] = useState([]);
+  const [coachState, setCoachState] = useState("idle"); // idle | thinking | ready | error | muted
+  const [coachFollowup, setCoachFollowup] = useState("");
+  const [coachQr, setCoachQr] = useState([]);
+  const [coachAskCount, setCoachAskCount] = useState(0);
+  const [coachErr, setCoachErr] = useState("");
   const ref = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -138,6 +143,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setText(""); setSenses([]); setHintOn(false); setHintIdx(0); setMedia([]); setRec(false); setSaving(false);
       setAudioState("idle"); setAudioErr(""); setAudioBlob(null); setAudioSec(0);
       setImageState("idle"); setImageErr(""); setPhotos([]);
+      setCoachState("idle"); setCoachFollowup(""); setCoachQr([]); setCoachAskCount(0); setCoachErr("");
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
       if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
@@ -152,6 +158,29 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   }, [text.length]);
 
   const nextHint = () => { setHintOn(false); setTimeout(() => { setHintIdx((i) => (i + 1) % q.hints.length); setHintOn(true); }, 280); };
+
+  const maybeAskCoach = async ({ force = false, sourceText = null } = {}) => {
+    if (coachState === "muted") return;
+    const t = (sourceText ?? text ?? "").trim();
+    if (!force) {
+      if (t.length < 40) return;
+      if (coachAskCount >= 3) return;
+      if (coachState === "thinking") return;
+    }
+
+    setCoachState("thinking");
+    setCoachErr("");
+    const r = await askWriteFollowup({ question: q.q, text: t, senses });
+    if (r?.followup) {
+      setCoachFollowup(r.followup);
+      setCoachQr(r.qr || []);
+      setCoachState("ready");
+      setCoachAskCount((c) => c + 1);
+    } else {
+      setCoachState("error");
+      setCoachErr("후속 질문 생성에 실패했어요.");
+    }
+  };
   const toggleS = (s) => setSenses((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
   const startVoiceRecord = async () => {
     try {
@@ -221,7 +250,11 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setAudioState("transcribing");
       const r = await transcribeAudio(targetBlob, { language: "ko", fileName: `remain-${Date.now()}.webm` });
       const append = (r?.text || "").trim();
-      if (append) setText((prev) => (prev ? `${prev}\n${append}` : append));
+      if (append) {
+        const merged = text ? `${text}\n${append}` : append;
+        setText(merged);
+        void maybeAskCoach({ force: true, sourceText: merged });
+      }
       setAudioState("idle");
       setAudioBlob(null);
       setAudioSec(0);
@@ -260,6 +293,18 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
     }
     setMedia((p) => p.includes(t) ? p : [...p, t]);
   };
+  useEffect(() => {
+    if (!active) return;
+    if (coachState === "muted") return;
+    if (text.trim().length < 40) return;
+
+    const timer = setTimeout(() => {
+      void maybeAskCoach();
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, active]);
+
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
@@ -301,6 +346,63 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
               <div style={{ fontFamily: "var(--f-b)", fontSize: 13, fontWeight: 500, color: "var(--w60)", lineHeight: 1.6 }}>{q.hints[hintIdx]}</div>
             </div>
             <span style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, color: "var(--w35)", flexShrink: 0, marginTop: 2 }}>다음 →</span>
+          </div>
+        )}
+
+        {coachState !== "idle" && coachState !== "muted" && (
+          <div style={{ margin: "0 18px 12px", background: "rgba(27,74,239,.1)", border: "1px solid rgba(27,74,239,.22)", borderRadius: 12, padding: "10px 12px" }}>
+            <div style={{ fontFamily: "var(--f-b)", fontSize: 10, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(75,118,255,.9)", marginBottom: 6 }}>
+              기록 코치
+            </div>
+
+            {coachState === "thinking" && (
+              <div style={{ fontFamily: "var(--f-b)", fontSize: 12, color: "var(--w60)" }}>아카이비스트가 읽고 있어요…</div>
+            )}
+
+            {coachState === "ready" && (
+              <>
+                <div style={{ fontFamily: "var(--f-b)", fontSize: 13, color: "var(--w80)", lineHeight: 1.55, marginBottom: 8 }}>{coachFollowup}</div>
+                {coachQr?.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                    {coachQr.map((qr, idx) => (
+                      <button
+                        key={`${qr}-${idx}`}
+                        onClick={() => setText((prev) => (prev ? `${prev}\n${qr}` : qr))}
+                        style={{ border: "1px solid var(--rim2)", background: "var(--w08)", color: "var(--w80)", borderRadius: 999, padding: "6px 10px", fontFamily: "var(--f-b)", fontSize: 11, cursor: "pointer" }}
+                      >
+                        {qr}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setText((prev) => (prev ? `${prev}\n${coachFollowup}` : coachFollowup))}
+                    style={{ border: "none", background: "white", color: "var(--night)", borderRadius: 8, padding: "7px 10px", fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    질문 반영
+                  </button>
+                  <button
+                    onClick={() => { setCoachState("muted"); setCoachFollowup(""); setCoachQr([]); }}
+                    style={{ border: "1px solid var(--rim2)", background: "transparent", color: "var(--w60)", borderRadius: 8, padding: "7px 10px", fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    이번엔 그만
+                  </button>
+                </div>
+              </>
+            )}
+
+            {coachState === "error" && (
+              <div>
+                <div style={{ fontFamily: "var(--f-b)", fontSize: 12, color: "#ff8f8f", marginBottom: 6 }}>{coachErr || "후속 질문 생성 실패"}</div>
+                <button
+                  onClick={() => maybeAskCoach({ force: true })}
+                  style={{ border: "none", background: "white", color: "var(--night)", borderRadius: 8, padding: "7px 10px", fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
           </div>
         )}
 
