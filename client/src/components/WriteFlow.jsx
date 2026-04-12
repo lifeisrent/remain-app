@@ -123,8 +123,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   const [imageErr, setImageErr] = useState("");
   const [photos, setPhotos] = useState([]);
   const [coachState, setCoachState] = useState("idle"); // idle | thinking | ready | error | muted
-  const [coachFollowup, setCoachFollowup] = useState("");
-  const [coachQr, setCoachQr] = useState([]);
+  const [coachText, setCoachText] = useState("");
   const [coachAskCount, setCoachAskCount] = useState(0);
   const [coachErr, setCoachErr] = useState("");
   const [coachDebug, setCoachDebug] = useState({
@@ -154,7 +153,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setText(""); setSenses([]); setHintOn(false); setHintIdx(0); setMedia([]); setRec(false); setSaving(false);
       setAudioState("idle"); setAudioErr(""); setAudioBlob(null); setAudioSec(0);
       setImageState("idle"); setImageErr(""); setPhotos([]);
-      setCoachState("idle"); setCoachFollowup(""); setCoachQr([]); setCoachAskCount(0); setCoachErr("");
+      setCoachState("idle"); setCoachText(""); setCoachAskCount(0); setCoachErr("");
       setCoachDebug({
         lastTrigger: "-",
         lastSkip: "-",
@@ -211,21 +210,18 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
     setCoachState("thinking");
     setCoachErr("");
     const r = await askWriteFollowup({ question: q.q, text: t, senses });
-    if (r?.followup) {
-      setCoachFollowup(r.followup);
-      setCoachQr(r.qr || []);
+    if (r?.text) {
+      setCoachText(r.text);
       setCoachState("ready");
       setCoachAskCount((c) => c + 1);
-      setCoachDebug((d) => ({ ...d, lastSkip: r?.error || "-", lastFollowupLen: (r.followup || "").length, lastQrCount: (r.qr || []).length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
+      setCoachDebug((d) => ({ ...d, lastSkip: r?.error || "-", lastFollowupLen: (r.text || "").length, lastQrCount: 0, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     } else {
       const sense = senses?.[0] || "감정";
-      const fallbackFollowup = `${sense} 기준으로, 방금 장면에서 가장 또렷했던 한 가지를 더 적어볼까요?`;
-      const fallbackQr = ["그때 몸이 먼저 반응했어.", "소리/냄새가 먼저 떠올랐어.", "생각보다 별일 아니었어."];
-      setCoachFollowup(fallbackFollowup);
-      setCoachQr(fallbackQr);
+      const fallbackText = `${sense}이 또렷하게 느껴지는 장면이네요. 그때 마음이 어떻게 움직였는지 한 줄만 더 적어볼까요?`;
+      setCoachText(fallbackText);
       setCoachState("ready");
       setCoachAskCount((c) => c + 1);
-      setCoachDebug((d) => ({ ...d, lastSkip: `component-fallback:${r?.error || "empty-followup"}`, lastFollowupLen: fallbackFollowup.length, lastQrCount: fallbackQr.length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
+      setCoachDebug((d) => ({ ...d, lastSkip: `component-fallback:${r?.error || "empty-text"}`, lastFollowupLen: fallbackText.length, lastQrCount: 0, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     }
   };
   const toggleS = (s) => setSenses((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
@@ -416,42 +412,25 @@ updated:${coachDebug.updatedAt}`}
 
         {coachState !== "idle" && coachState !== "muted" && (
           <div style={{ margin: "0 18px 12px", background: "rgba(27,74,239,.1)", border: "1px solid rgba(27,74,239,.22)", borderRadius: 12, padding: "10px 12px" }}>
-            <div style={{ fontFamily: "var(--f-b)", fontSize: 10, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "rgba(75,118,255,.9)", marginBottom: 6 }}>
-              기록 코치
-            </div>
-
             {coachState === "thinking" && (
               <div style={{ fontFamily: "var(--f-b)", fontSize: 12, color: "var(--w60)" }}>아카이비스트가 읽고 있어요…</div>
             )}
 
             {coachState === "ready" && (
               <>
-                <div style={{ fontFamily: "var(--f-b)", fontSize: 13, color: "var(--w80)", lineHeight: 1.55, marginBottom: 8 }}>{coachFollowup}</div>
-                {coachQr?.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                    {coachQr.map((qr, idx) => (
-                      <button
-                        key={`${qr}-${idx}`}
-                        onClick={() => setText((prev) => (prev ? `${prev}\n${qr}` : qr))}
-                        style={{ border: "1px solid var(--rim2)", background: "var(--w08)", color: "var(--w80)", borderRadius: 999, padding: "6px 10px", fontFamily: "var(--f-b)", fontSize: 11, cursor: "pointer" }}
-                      >
-                        {qr}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div style={{ fontFamily: "var(--f-b)", fontSize: 13, color: "var(--w80)", lineHeight: 1.55, marginBottom: 8 }}>{coachText}</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button
-                    onClick={() => setText((prev) => (prev ? `${prev}\n${coachFollowup}` : coachFollowup))}
+                    onClick={() => setText((prev) => (prev ? `${prev}\n${coachText}` : coachText))}
                     style={{ border: "none", background: "white", color: "var(--night)", borderRadius: 8, padding: "7px 10px", fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
                   >
-                    질문 반영
+                    반영
                   </button>
                   <button
-                    onClick={() => { setCoachState("muted"); setCoachFollowup(""); setCoachQr([]); }}
+                    onClick={() => { setCoachState("muted"); setCoachText(""); }}
                     style={{ border: "1px solid var(--rim2)", background: "transparent", color: "var(--w60)", borderRadius: 8, padding: "7px 10px", fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
                   >
-                    이번엔 그만
+                    닫기
                   </button>
                 </div>
               </>
