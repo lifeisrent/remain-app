@@ -55,7 +55,8 @@ app.post("/api/transcribe", transcribeLimiter, upload.single("audio"), async (re
   try {
     if (!req.file) return res.status(400).json({ error: "audio 파일이 필요합니다." });
 
-    const provider = (process.env.WHISPER_PROVIDER || "local").toLowerCase();
+    const defaultProvider = process.env.NODE_ENV === "production" ? "openai" : "local";
+    const provider = (process.env.WHISPER_PROVIDER || defaultProvider).toLowerCase();
     const language = "ko"; // fixed per product decision
 
     const form = new FormData();

@@ -202,6 +202,10 @@ remain-app/
 
 Whisper 호환 음성 인식 엔드포인트입니다. (dev / docker 공통)
 
+> 배포(Railway) 권장: `WHISPER_PROVIDER=openai`
+> 
+> 로컬 개발 권장: `WHISPER_PROVIDER=local` + 로컬 whisper 서버 실행
+
 - Content-Type: `multipart/form-data`
 - field: `audio` (webm/wav/mp3 등)
 
