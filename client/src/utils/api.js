@@ -131,7 +131,7 @@ export async function askClaude(history, modeIdx = 0, customTone = "") {
   try {
     const custom = (customTone || "").trim();
     const customCtx = custom
-      ? `\n사용자 맞춤 톤 요청(기본 톤 우선, 충돌 시 기본 톤 유지): ${custom}`
+      ? `\n사용자 맞춤 톤 요청(기본 톤과 결합하되, 충돌 시 맞춤 톤을 우선 적용): ${custom}`
       : "";
 
     const data = await callProxy({
