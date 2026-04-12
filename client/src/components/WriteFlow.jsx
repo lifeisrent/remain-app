@@ -380,6 +380,21 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
               )}
             </div>
           )}
+
+          {photos.length > 0 && (
+            <div style={{ marginTop: 10, background: "var(--w08)", border: "1px solid var(--rim2)", borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ fontFamily: "var(--f-b)", fontSize: 10, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 8 }}>
+                사진 미리보기 ({photos.length})
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {photos.map((url, idx) => (
+                  <div key={`${url}-${idx}`} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1 / 1", border: "1px solid var(--rim2)" }}>
+                    <img src={url} alt={`photo-${idx + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ padding: "4px 18px 36px" }}>
