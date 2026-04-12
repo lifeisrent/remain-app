@@ -127,6 +127,16 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   const [coachQr, setCoachQr] = useState([]);
   const [coachAskCount, setCoachAskCount] = useState(0);
   const [coachErr, setCoachErr] = useState("");
+  const [coachDebug, setCoachDebug] = useState({
+    lastTrigger: "-",
+    lastSkip: "-",
+    inputLen: 0,
+    askCount: 0,
+    lastFollowupLen: 0,
+    lastQrCount: 0,
+    transcribeLen: 0,
+    updatedAt: "-",
+  });
   const ref = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -135,6 +145,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   const photoInputRef = useRef(null);
   const maxSec = 220;
   const debugAudio = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debugAudio") === "1";
+  const debugCoach = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debugCoach") === "1";
   const depth = depthInfo(text.length, senses);
 
   useEffect(() => {
@@ -144,6 +155,16 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setAudioState("idle"); setAudioErr(""); setAudioBlob(null); setAudioSec(0);
       setImageState("idle"); setImageErr(""); setPhotos([]);
       setCoachState("idle"); setCoachFollowup(""); setCoachQr([]); setCoachAskCount(0); setCoachErr("");
+      setCoachDebug({
+        lastTrigger: "-",
+        lastSkip: "-",
+        inputLen: 0,
+        askCount: 0,
+        lastFollowupLen: 0,
+        lastQrCount: 0,
+        transcribeLen: 0,
+        updatedAt: "-",
+      });
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
       if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
@@ -159,15 +180,34 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
 
   const nextHint = () => { setHintOn(false); setTimeout(() => { setHintIdx((i) => (i + 1) % q.hints.length); setHintOn(true); }, 280); };
 
-  const maybeAskCoach = async ({ force = false, sourceText = null } = {}) => {
-    if (coachState === "muted") return;
+  const maybeAskCoach = async ({ force = false, sourceText = null, reason = "unknown" } = {}) => {
     const t = (sourceText ?? text ?? "").trim();
+    const now = new Date().toLocaleTimeString("ko-KR");
+
+    const markSkip = (msg) => {
+      setCoachDebug((d) => ({ ...d, lastSkip: msg, inputLen: t.length, askCount: coachAskCount, updatedAt: now }));
+    };
+
+    if (coachState === "muted") {
+      markSkip("muted");
+      return;
+    }
     if (!force) {
-      if (t.length < 40) return;
-      if (coachAskCount >= 3) return;
-      if (coachState === "thinking") return;
+      if (t.length < 40) {
+        markSkip("text<40");
+        return;
+      }
+      if (coachAskCount >= 3) {
+        markSkip("askCount>=3");
+        return;
+      }
+      if (coachState === "thinking") {
+        markSkip("already thinking");
+        return;
+      }
     }
 
+    setCoachDebug((d) => ({ ...d, lastTrigger: `${reason}${force ? "(force)" : ""}`, inputLen: t.length, askCount: coachAskCount, updatedAt: now }));
     setCoachState("thinking");
     setCoachErr("");
     const r = await askWriteFollowup({ question: q.q, text: t, senses });
@@ -176,9 +216,11 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setCoachQr(r.qr || []);
       setCoachState("ready");
       setCoachAskCount((c) => c + 1);
+      setCoachDebug((d) => ({ ...d, lastSkip: "-", lastFollowupLen: (r.followup || "").length, lastQrCount: (r.qr || []).length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     } else {
       setCoachState("error");
       setCoachErr("후속 질문 생성에 실패했어요.");
+      setCoachDebug((d) => ({ ...d, lastFollowupLen: 0, lastQrCount: 0, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     }
   };
   const toggleS = (s) => setSenses((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
@@ -250,17 +292,20 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
       setAudioState("transcribing");
       const r = await transcribeAudio(targetBlob, { language: "ko", fileName: `remain-${Date.now()}.webm` });
       const append = (r?.text || "").trim();
+      setCoachDebug((d) => ({ ...d, transcribeLen: append.length, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
       if (append) {
         const merged = text ? `${text}\n${append}` : append;
         setText(merged);
-        void maybeAskCoach({ force: true, sourceText: merged });
+        void maybeAskCoach({ force: true, sourceText: merged, reason: "voice-transcribe" });
       }
       setAudioState("idle");
       setAudioBlob(null);
       setAudioSec(0);
     } catch (err) {
-      setAudioErr(err?.message || "음성 변환에 실패했어요. 텍스트로 이어서 작성해 주세요.");
+      const em = err?.message || "음성 변환에 실패했어요. 텍스트로 이어서 작성해 주세요.";
+      setAudioErr(em);
       setAudioState("error");
+      setCoachDebug((d) => ({ ...d, lastSkip: `transcribe-error:${em}`, updatedAt: new Date().toLocaleTimeString("ko-KR") }));
     }
   };
 
@@ -299,7 +344,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
     if (text.trim().length < 40) return;
 
     const timer = setTimeout(() => {
-      void maybeAskCoach();
+      void maybeAskCoach({ reason: "text-debounce" });
     }, 1500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -346,6 +391,21 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
               <div style={{ fontFamily: "var(--f-b)", fontSize: 13, fontWeight: 500, color: "var(--w60)", lineHeight: 1.6 }}>{q.hints[hintIdx]}</div>
             </div>
             <span style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, color: "var(--w35)", flexShrink: 0, marginTop: 2 }}>다음 →</span>
+          </div>
+        )}
+
+        {debugCoach && (
+          <div style={{ margin: "0 18px 12px", background: "rgba(0,0,0,.72)", color: "#8CFF9E", border: "1px solid rgba(140,255,158,.35)", borderRadius: 8, padding: "8px 10px", fontFamily: "monospace", fontSize: 11, lineHeight: 1.35 }}>
+{`debugCoach
+state:${coachState}
+lastTrigger:${coachDebug.lastTrigger}
+lastSkip:${coachDebug.lastSkip}
+inputLen:${coachDebug.inputLen}
+askCount:${coachAskCount}
+transcribeLen:${coachDebug.transcribeLen}
+followupLen:${coachDebug.lastFollowupLen}
+qrCount:${coachDebug.lastQrCount}
+updated:${coachDebug.updatedAt}`}
           </div>
         )}
 
