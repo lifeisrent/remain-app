@@ -1,12 +1,50 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Soul from "./Soul";
 import { SOULS, SENSE_COLORS } from "../utils/constants";
 
 export function ArchiveTab({ active, soul, memories }) {
   const [filter, setFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const lastTapRef = useRef(0);
   const tags = ["all", "냄새", "소리", "감촉", "빛", "감정", "사람"];
   const filtered = filter === "all" ? memories : memories.filter((m) => (m.senses || []).includes(filter));
+
+  const copyDetailToClipboard = async () => {
+    if (!selectedItem) return;
+    const title = selectedItem.question || "대화 기록";
+    const date = selectedItem.savedAt ? new Date(selectedItem.savedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "numeric", day: "numeric" }) : "";
+    const body = selectedItem.text || "";
+    const payload = `${title}${date ? `\n${date}` : ""}${body ? `\n\n${body}` : ""}`;
+
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      // fallback
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = payload;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1400);
+      } catch {}
+    }
+  };
+
+  const handleDetailTouchEnd = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      copyDetailToClipboard();
+      lastTapRef.current = 0;
+      return;
+    }
+    lastTapRef.current = now;
+  };
 
   return (
     <div className={`screen scr ${active ? "enter" : "exit-down"}`} style={{ bottom: 0, background: "transparent" }}>
@@ -87,7 +125,7 @@ export function ArchiveTab({ active, soul, memories }) {
             )}
           </>
         ) : (
-          <div className="fu">
+          <div className="fu" onDoubleClick={copyDetailToClipboard} onTouchEnd={handleDetailTouchEnd}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
               <button
                 onClick={() => setSelectedItem(null)}
@@ -121,6 +159,12 @@ export function ArchiveTab({ active, soul, memories }) {
                 {selectedItem.text || "내용이 없어요."}
               </div>
             </div>
+
+            {copied && (
+              <div style={{ marginTop: 10, fontFamily: "var(--f-b)", fontSize: 12, color: "var(--mint)" }}>
+                복사됨 ✓
+              </div>
+            )}
           </div>
         )}
       </div>
