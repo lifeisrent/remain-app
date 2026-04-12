@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Soul from "./Soul";
 import { QUESTIONS, SENSE_COLORS, TIMES } from "../utils/constants";
-import { transcribeAudio } from "../utils/api";
+import { transcribeAudio, uploadImage } from "../utils/api";
 
 export default function WriteFlow({ active, step, setStep, q, qIdx, setQIdx, soul, saveMemory, user, onUpdateNotifyTime, onSetNotifyAfterSeconds, onBack }) {
   if (!active) return null;
@@ -119,11 +119,15 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   const [audioErr, setAudioErr] = useState("");
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioSec, setAudioSec] = useState(0);
+  const [imageState, setImageState] = useState("idle"); // idle | uploading | error
+  const [imageErr, setImageErr] = useState("");
+  const [photos, setPhotos] = useState([]);
   const ref = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const timerRef = useRef(null);
+  const photoInputRef = useRef(null);
   const maxSec = 220;
   const debugAudio = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debugAudio") === "1";
   const depth = depthInfo(text.length, senses);
@@ -133,6 +137,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
     else {
       setText(""); setSenses([]); setHintOn(false); setHintIdx(0); setMedia([]); setRec(false); setSaving(false);
       setAudioState("idle"); setAudioErr(""); setAudioBlob(null); setAudioSec(0);
+      setImageState("idle"); setImageErr(""); setPhotos([]);
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
       if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
@@ -226,10 +231,31 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
     }
   };
 
+  const handlePickPhoto = async (file) => {
+    if (!file) return;
+    try {
+      setImageErr("");
+      setImageState("uploading");
+      const r = await uploadImage(file);
+      if (r?.url) {
+        setPhotos((prev) => [...prev, r.url]);
+        setMedia((p) => (p.includes("photo") ? p : [...p, "photo"]));
+      }
+      setImageState("idle");
+    } catch (err) {
+      setImageErr(err?.message || "사진 업로드에 실패했어요.");
+      setImageState("error");
+    }
+  };
+
   const toggleM = (t) => {
     if (t === "voice") {
       if (audioState === "recording") stopVoiceRecord();
       else startVoiceRecord();
+      return;
+    }
+    if (t === "photo") {
+      photoInputRef.current?.click();
       return;
     }
     setMedia((p) => p.includes(t) ? p : [...p, t]);
@@ -237,7 +263,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
-    await onSave({ text, senses, media, date: new Date().toISOString() });
+    await onSave({ text, senses, media, photos, date: new Date().toISOString() });
   };
 
   return (
@@ -285,6 +311,19 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
           </div>
         </div>
 
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            void handlePickPhoto(f);
+            e.target.value = "";
+          }}
+        />
+
         <div style={{ padding: "0 18px 14px" }}>
           <div style={{ fontFamily: "var(--f-b)", fontSize: 10, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--w35)", marginBottom: 8 }}>더 담기</div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -294,7 +333,15 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
                   ? <div style={{ display: "flex", gap: 2, height: 22, alignItems: "center" }}>{[0.3, 0.8, 1.3, 0.6, 0.9, 1.5, 0.5].map((h, i) => <div key={i} className="wave-bar" style={{ "--h": h, "--d": `${i * 0.07}s`, height: 6 + h * 8 }} />)}</div>
                   : <span style={{ fontSize: 20 }}>{m.icon}</span>}
                 <span style={{ fontFamily: "var(--f-b)", fontSize: 10, fontWeight: 700, color: m.t === "voice" && rec ? "var(--coral)" : media.includes(m.t) ? "white" : "var(--w35)" }}>
-                  {m.t === "voice" && audioState === "recording" ? `녹음중 ${audioSec}s` : media.includes(m.t) && m.t !== "voice" ? `✓${m.label}` : m.label}
+                  {m.t === "voice" && audioState === "recording"
+                    ? `녹음중 ${audioSec}s`
+                    : m.t === "photo" && imageState === "uploading"
+                      ? "업로드중…"
+                      : m.t === "photo" && photos.length > 0
+                        ? `✓사진 ${photos.length}`
+                        : media.includes(m.t) && m.t !== "voice"
+                          ? `✓${m.label}`
+                          : m.label}
                 </span>
               </button>
             ))}
@@ -326,6 +373,7 @@ function WriteEditor({ active, q, soul, onBack, onSave }) {
                 </button>
               )}
               {audioErr && <div style={{ marginTop: 6, fontFamily: "var(--f-b)", fontSize: 11, color: "#ff8f8f" }}>{audioErr}</div>}
+              {imageErr && <div style={{ marginTop: 6, fontFamily: "var(--f-b)", fontSize: 11, color: "#ff8f8f" }}>{imageErr}</div>}
               {debugAudio && (
                 <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: 10, color: "#8CFF9E" }}>
                   debugAudio state={audioState} sec={audioSec} blob={audioBlob ? audioBlob.size : 0}

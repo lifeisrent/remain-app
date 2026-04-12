@@ -34,6 +34,21 @@ export async function transcribeAudio(blob, { language = "ko", fileName = "recor
   return data;
 }
 
+export async function uploadImage(file) {
+  const form = new FormData();
+  form.append("image", file, file?.name || `remain-${Date.now()}.jpg`);
+
+  const res = await fetch(`${BASE}/upload-image`, {
+    method: "POST",
+    body: form,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
 async function callProxy(body) {
   const res = await fetch(`${BASE}/chat`, {
     method: "POST",

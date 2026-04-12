@@ -5,7 +5,8 @@ import rateLimit from "express-rate-limit";
 import multer from "multer";
 import { createServer } from "http";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { dirname, join, extname } from "path";
+import { promises as fs } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -18,6 +19,19 @@ const CLIENT_URLS = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "http:
   .filter(Boolean);
 
 app.use(express.json({ limit: "1mb" }));
+
+const uploadDir = join(__dirname, "uploads");
+const allowedImageMimes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ensureUploadDir = async () => {
+  try {
+    await fs.mkdir(uploadDir, { recursive: true });
+  } catch (err) {
+    console.error("[Upload Dir Error]", err);
+  }
+};
+void ensureUploadDir();
+
+app.use("/uploads", express.static(uploadDir));
 
 if (IS_PROD) {
   app.use(express.static(join(__dirname, "public")));
@@ -41,6 +55,11 @@ app.use("/api", rateLimit({
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
+});
+
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
 });
 
 const transcribeLimiter = rateLimit({
@@ -113,6 +132,36 @@ app.post("/api/transcribe", transcribeLimiter, upload.single("audio"), async (re
   } catch (err) {
     console.error("[Transcribe Server Error]", err);
     return res.status(500).json({ error: "음성 변환 중 서버 오류" });
+  }
+});
+
+app.post("/api/upload-image", imageUpload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "image 파일이 필요합니다." });
+    if (!allowedImageMimes.has(req.file.mimetype)) {
+      return res.status(400).json({ error: "지원하지 않는 이미지 형식입니다. (jpg/png/webp/gif)" });
+    }
+
+    const ext = extname(req.file.originalname || "") ||
+      (req.file.mimetype === "image/png" ? ".png" :
+       req.file.mimetype === "image/webp" ? ".webp" :
+       req.file.mimetype === "image/gif" ? ".gif" : ".jpg");
+
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+    const target = join(uploadDir, fileName);
+
+    await fs.writeFile(target, req.file.buffer);
+
+    return res.json({
+      ok: true,
+      url: `/uploads/${fileName}`,
+      fileName,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+  } catch (err) {
+    console.error("[Upload Image Error]", err);
+    return res.status(500).json({ error: "이미지 업로드 중 오류" });
   }
 });
 

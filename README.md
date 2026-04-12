@@ -65,6 +65,14 @@ npm run dev
 
 최초 1회 진입 시 테스트용 사용자(`테스트 사용자`)를 local storage에 저장하고 바로 홈 화면으로 들어갑니다.
 
+### 로컬 이미지 업로드 (MVP)
+
+- 엔드포인트: `POST /api/upload-image`
+- form-data field: `image`
+- 업로드 파일은 서버 `server/uploads/`에 저장되고 `/uploads/<file>`로 접근됩니다.
+
+> 주의: Railway 등 ephemeral 환경에서는 재배포/재시작 시 파일이 유실될 수 있습니다.
+
 ### 4. 로컬 네트워크(LAN)에서 접속하기
 
 1. 개발 PC의 IP 확인
