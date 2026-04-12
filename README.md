@@ -246,6 +246,14 @@ Whisper 호환 음성 인식 엔드포인트입니다. (dev / docker 공통)
    - whisper 서비스 `/health` 응답 확인
    - 앱에서 음성 변환 시 provider=`local` 확인
 
+### POST /api/coach
+
+기록 탭 인라인 코치(후속 질문) 전용 엔드포인트입니다.
+
+- 기본 라우팅: `COACH_PROVIDER=openai` 권장 (저비용 모델)
+- OpenAI 모델 기본값: `gpt-4o-mini`
+- Anthropic 대체 사용 가능: `COACH_PROVIDER=anthropic`
+
 ## 기능
 
 | 기능 | 설명 |

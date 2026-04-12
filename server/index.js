@@ -165,31 +165,105 @@ app.post("/api/upload-image", imageUpload.single("image"), async (req, res) => {
   }
 });
 
-app.post("/api/chat", async (req, res) => {
+async function callAnthropicMessages({ messages, system, model, max_tokens = 1000, mcp_servers }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "서버에 API 키가 설정되지 않았습니다." });
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY missing");
 
+  const body = { model, max_tokens, messages };
+  if (system) body.system = system;
+  if (mcp_servers) body.mcp_servers = mcp_servers;
+
+  const headers = {
+    "Content-Type": "application/json",
+    "x-api-key": apiKey,
+    "anthropic-version": "2023-06-01",
+  };
+  if (mcp_servers) headers["anthropic-beta"] = "mcp-client-2025-04-04";
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const msg = data?.error?.message || "Anthropic API 오류";
+    const err = new Error(msg);
+    err.status = response.status;
+    throw err;
+  }
+  return data;
+}
+
+async function callOpenAIChat({ messages, system, model, max_tokens = 300 }) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY missing");
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        ...(system ? [{ role: "system", content: system }] : []),
+        ...messages,
+      ],
+      max_tokens,
+      temperature: 0.6,
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const msg = data?.error?.message || "OpenAI API 오류";
+    const err = new Error(msg);
+    err.status = response.status;
+    throw err;
+  }
+
+  return {
+    content: [{ text: data?.choices?.[0]?.message?.content || "" }],
+    provider: "openai",
+    model,
+  };
+}
+
+app.post("/api/coach", async (req, res) => {
+  const { messages, system, max_tokens = 300 } = req.body;
+  if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: "messages 파라미터가 필요합니다." });
+
+  const provider = (process.env.COACH_PROVIDER || "openai").toLowerCase();
+
+  try {
+    if (provider === "anthropic") {
+      const model = process.env.COACH_ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
+      const data = await callAnthropicMessages({ messages, system, model, max_tokens });
+      return res.json(data);
+    }
+
+    const model = process.env.COACH_OPENAI_MODEL || "gpt-4o-mini";
+    const data = await callOpenAIChat({ messages, system, model, max_tokens });
+    return res.json(data);
+  } catch (err) {
+    console.error("[Coach API Error]", err);
+    return res.status(err.status || 500).json({ error: err.message || "코치 API 오류" });
+  }
+});
+
+app.post("/api/chat", async (req, res) => {
   const { messages, system, model = "claude-sonnet-4-20250514", max_tokens = 1000, mcp_servers } = req.body;
   if (!messages || !Array.isArray(messages)) return res.status(400).json({ error: "messages 파라미터가 필요합니다." });
 
   try {
-    const body = { model, max_tokens, messages };
-    if (system) body.system = system;
-    if (mcp_servers) body.mcp_servers = mcp_servers;
-    const headers = {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    };
-    if (mcp_servers) headers["anthropic-beta"] = "mcp-client-2025-04-04";
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", headers, body: JSON.stringify(body),
-    });
-    const data = await response.json();
-    if (!response.ok) { console.error("[Claude API Error]", data); return res.status(response.status).json({ error: data.error?.message || "API 오류" }); }
+    const data = await callAnthropicMessages({ messages, system, model, max_tokens, mcp_servers });
     res.json(data);
-  } catch (err) { console.error("[Server Error]", err); res.status(500).json({ error: "서버 오류" }); }
+  } catch (err) {
+    console.error("[Chat API Error]", err);
+    res.status(err.status || 500).json({ error: err.message || "서버 오류" });
+  }
 });
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", time: new Date().toISOString(), env: IS_PROD ? "production" : "development", hasApiKey: !!process.env.ANTHROPIC_API_KEY }));

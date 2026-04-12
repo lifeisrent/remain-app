@@ -79,7 +79,7 @@ export async function askWriteFollowup({ question, text, senses = [] }) {
       system: WRITE_COACH_SYSTEM,
       messages: [{ role: "user", content: payload }],
       max_tokens: 300,
-    });
+    }, "coach");
 
     const raw = data.content?.[0]?.text || "";
     const cleaned = raw.replace(/```json|```/g, "").trim();
@@ -113,8 +113,8 @@ export async function askWriteFollowup({ question, text, senses = [] }) {
   }
 }
 
-async function callProxy(body) {
-  const res = await fetch(`${BASE}/chat`, {
+async function callProxy(body, path = "chat") {
+  const res = await fetch(`${BASE}/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
