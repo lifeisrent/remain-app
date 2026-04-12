@@ -3,7 +3,8 @@ import Soul from "./Soul";
 import { askClaude } from "../utils/api";
 import Store from "../utils/storage";
 
-const MODES = ["기억 심화", "감정 탐색", "편지 쓰기", "정리 중"];
+const MODES = ["자유 대화", "감정 탐색", "편지 쓰기", "정리 중"];
+const SHOW_QUICK_REPLIES = false;
 
 export default function ChatTab({ active, user, soul }) {
   const [msgs, setMsgs] = useState([]);
@@ -27,9 +28,9 @@ export default function ChatTab({ active, user, soul }) {
   }, [active]);
 
   const init = async () => {
-    const sys = { id: Date.now(), role: "system", text: "아카이비스트와의 대화가 시작됐어요", ts: "오늘" };
+    const sys = { id: Date.now(), role: "system", text: "아카이비스트와의 자유 대화가 시작됐어요", ts: "오늘" };
     setMsgs([sys]); setLoading(true);
-    const q = user.name ? `안녕하세요. 저는 ${user.name}이에요. 따뜻하게 맞이해주세요.` : "새 사용자가 접속했습니다. 따뜻하게 맞이해주세요.";
+    const q = user.name ? `안녕하세요. 저는 ${user.name}이에요. 지금부터 자유롭게 대화하고 싶어요.` : "새 사용자가 접속했습니다. 따뜻하게 맞이해주세요.";
     const h = [{ role: "user", content: q }];
     const r = await askClaude(h, 0);
     const ai = { id: Date.now() + 1, role: "ai", text: r.text, qr: r.qr || [], ts: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) };
@@ -97,7 +98,7 @@ export default function ChatTab({ active, user, soul }) {
         </div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 9 }}>
           <div style={{ flex: 1, background: "var(--surface)", border: "1.5px solid var(--rim2)", borderRadius: 22, display: "flex", alignItems: "flex-end", gap: 7, padding: "9px 13px" }}>
-            <textarea ref={inputRef} rows={1} placeholder="이야기를 건네보세요…" value={input}
+            <textarea ref={inputRef} rows={1} placeholder="지금 떠오르는 이야기를 자유롭게 적어보세요." value={input}
               onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px"; }}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               style={{ flex: 1, background: "transparent", border: "none", outline: "none", resize: "none", fontFamily: "var(--f-b)", fontSize: 14, fontWeight: 500, color: "var(--w95)", lineHeight: 1.5, maxHeight: 96, scrollbarWidth: "none" }} />
@@ -137,7 +138,7 @@ function ChatMsg({ msg, prevRole, isLast, onQR }) {
         <div className="bbl-ai"><div className="bbl-t" style={{ color: "var(--w95)" }}>{msg.text}</div></div>
       </div>
       {msg.ts && <div style={{ fontFamily: "var(--f-m)", fontSize: 10, color: "var(--w35)", paddingLeft: 40, marginTop: 3 }}>{msg.ts}</div>}
-      {msg.qr?.length > 0 && isLast && <div className="qr-row">{msg.qr.map((q) => <div key={q} className="qr-chip" onClick={() => onQR(q)}>{q}</div>)}</div>}
+      {SHOW_QUICK_REPLIES && msg.qr?.length > 0 && isLast && <div className="qr-row">{msg.qr.map((q) => <div key={q} className="qr-chip" onClick={() => onQR(q)}>{q}</div>)}</div>}
     </div>
   );
 }

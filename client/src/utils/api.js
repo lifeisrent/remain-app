@@ -1,13 +1,15 @@
-const ARCHIVIST_SYSTEM = `당신은 Remain의 아카이비스트입니다. 사용자가 삶의 소중한 기억을 발굴하도록 돕는 따뜻한 AI입니다.
+const ARCHIVIST_SYSTEM = `당신은 Remain의 아카이비스트입니다. 사용자의 입력을 읽고 따뜻하게 대화하는 동반자입니다.
 
 반드시 아래 JSON 형식으로만 응답하세요 (마크다운 없이):
-{"text":"응답 내용","qr":["선택지1","선택지2"]}
+{"text":"응답 내용","qr":[]}
 
 규칙:
-- 한국어, 짧고 감성적인 문장 2-3개
-- 기억의 감각(냄새·소리·빛·온도·감촉)을 끌어내는 질문으로 끝내기
-- 슬픔엔 먼저 공감 {"text":"...","qr":[]}
-- qr은 0-4개, 절대 조언/판단 금지`;
+- 한국어
+- 2~4문장
+- 사용자의 마지막 입력 맥락에 직접 반응할 것
+- 조언/판단/훈계 금지
+- 과도한 질문 남발 금지 (필요할 때만 1개)
+- qr은 기본 빈 배열`;
 
 const MODES_CTX = [
   "기억의 감각적 디테일을 깊이 파고드세요.",
@@ -131,11 +133,18 @@ export async function askClaude(history, modeIdx = 0) {
       system: ARCHIVIST_SYSTEM + "\n추가 지시: " + MODES_CTX[modeIdx],
       messages: history,
     });
-    const raw = data.content?.[0]?.text || '{"text":"계속 이야기해 주세요.","qr":[]}';
-    return JSON.parse(raw.replace(/```json|```/g, "").trim());
+    const raw = data.content?.[0]?.text || "";
+    const cleaned = raw.replace(/```json|```/g, "").trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      return { text: (parsed?.text || "").trim() || "계속 이야기해 주세요.", qr: Array.isArray(parsed?.qr) ? parsed.qr : [] };
+    } catch {
+      const fallback = cleaned || "계속 이야기해 주세요.";
+      return { text: fallback, qr: [] };
+    }
   } catch (err) {
     console.error("[askClaude]", err);
-    return { text: "잠시 연결이 끊겼어요. 다시 시도해 주세요.", qr: ["다시 시도"] };
+    return { text: "잠시 연결이 끊겼어요. 다시 시도해 주세요.", qr: [] };
   }
 }
 
