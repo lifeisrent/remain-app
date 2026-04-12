@@ -303,7 +303,7 @@ export default function ChatTab({ active, user, soul }) {
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: loading ? "var(--gold)" : "var(--mint)", animation: "pulse 2s infinite" }} />
             <span style={{ fontFamily: "var(--f-b)", fontSize: 11, fontWeight: 700, color: loading ? "var(--gold)" : "var(--mint)" }}>
-              {loading ? "응답 생성 중…" : "Claude AI 연결됨"}
+              {loading ? "응답 생성 중…" : `${MODES[mode]} · Claude AI 연결됨`}
             </span>
           </div>
         </div>
