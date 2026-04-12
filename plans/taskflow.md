@@ -287,3 +287,86 @@ Remain 앱의 기존 "기억 기록" 흐름에 **자기 전 상상 루틴**을 �
 - 실패 UX: 토스트/에러 안내 후 텍스트 계속 작성
 - 디버그: `?debugAudio=1` 지원
 
+---
+
+## 7) 계정/인증 영속화 계획 (Postgres + Prisma + Lucia)  ← Option C
+
+### 7-1. 목표
+- 서버 재시작/배포 후에도 로그인 유지
+- 사용자 식별자를 DB 기반 `userId`로 표준화
+- 기존 localStorage 중심 상태를 점진적으로 서버 사용자 상태와 결합
+
+### 7-2. 기술 스택
+- DB: PostgreSQL (Railway Postgres)
+- ORM: Prisma
+- Auth: Lucia (session + cookie)
+- Password Hash: argon2
+- Session 저장: DB(`sessions` 테이블) + HttpOnly cookie
+
+### 7-3. 데이터 모델 (MVP)
+1. `users`
+   - `id` (cuid/uuid)
+   - `email` (unique, nullable 허용 여부는 정책 결정)
+   - `password_hash`
+   - `display_name`
+   - `created_at`, `updated_at`
+2. `sessions`
+   - `id` (session id)
+   - `user_id` (FK)
+   - `expires_at`
+3. `user_profile` (기존 user 상태 이관)
+   - `user_id` (PK/FK)
+   - `purpose`, `soul_id`, `notify_time`, `notify_at_iso`, `notify_at_ms`
+4. `memories` (2단계)
+   - 기존 local 우선 유지 후 점진 이관
+
+### 7-4. API 설계 (MVP)
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `PUT /api/user/profile` (onboarding/설정 저장)
+
+응답 기본 규칙:
+- 성공: 최소 `{ ok: true }` + 필요 데이터
+- 실패: `{ error: string }`
+- 인증 실패: 401
+
+### 7-5. 프론트 연동 전략
+1. 앱 시작 시 `/api/auth/me` 호출
+2. 로그인 상태면 서버 profile 로딩 → 현재 `user` state hydration
+3. 로그아웃 시 localStorage 사용자 상태/민감 세션 정보 정리
+4. 기존 local memory는 MVP에서 유지, 이후 사용자별 서버 저장으로 확장
+
+### 7-6. 쿠키/보안 정책
+- Cookie: HttpOnly + SameSite=Lax + Secure(https)
+- CORS: `credentials: true` 허용
+- 브루트포스 방지: `/api/auth/*` 별도 rate-limit
+- 비밀번호 정책: 최소 길이/복잡도(수치 확정 필요)
+
+### 7-7. 마이그레이션 단계
+1. Prisma 도입 + users/sessions/profile 테이블 생성
+2. auth 라우트 구축 + `me` 엔드포인트
+3. Onboarding 저장 경로를 `/api/user/profile`로 전환
+4. 기존 local user에서 최초 로그인 시 profile 1회 마이그레이션
+5. 메모리 서버 저장은 다음 phase로 분리
+
+### 7-8. 수용 기준(AC)
+1. 회원가입/로그인/로그아웃 성공
+2. 서버 재시작 후에도 세션 유효 기간 내 자동 로그인 유지
+3. Railway 재배포 후에도 사용자 세션 유지
+4. 인증 없는 profile 업데이트 요청은 401
+
+### 7-9. 구현 전 확인 질문 (답변 필요)
+1. 로그인 식별자: **이메일만** vs **아이디(username) + 이메일 옵션**?
+2. 비밀번호 최소 길이: 기본 `8`로 갈지?
+3. 세션 만료 기간: `7일` / `30일` / 커스텀?
+4. 가입 즉시 로그인 처리할지?
+5. 소셜 로그인(구글 등)은 이번 범위에서 제외 맞는지?
+6. 기존 사용자(localStorage) 마이그레이션:
+   - A) 로그인 후 자동 1회 이관
+   - B) 별도 "기존 데이터 가져오기" 버튼
+7. 메모리 데이터 서버 저장 시점:
+   - A) 이번 auth MVP에서 같이
+   - B) 다음 phase로 분리 (권장)
+
