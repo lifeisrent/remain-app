@@ -18,6 +18,7 @@ export default function ChatTab({ active, user, soul }) {
   const [audioState, setAudioState] = useState("idle"); // idle | recording | transcribing | error
   const [audioErr, setAudioErr] = useState("");
   const [audioSec, setAudioSec] = useState(0);
+  const [waveLevels, setWaveLevels] = useState(Array(30).fill(8));
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -26,6 +27,11 @@ export default function ChatTab({ active, user, soul }) {
   const streamRef = useRef(null);
   const timerRef = useRef(null);
   const discardRef = useRef(false);
+  const autoSendRef = useRef(false);
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const freqDataRef = useRef(null);
+  const rafRef = useRef(null);
   const maxSec = 220;
 
   useEffect(() => {
@@ -59,6 +65,14 @@ export default function ChatTab({ active, user, soul }) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
       }
     };
   }, []);
@@ -133,10 +147,47 @@ export default function ChatTab({ active, user, soul }) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          const audioCtx = new AudioContextClass();
+          audioCtxRef.current = audioCtx;
+          const source = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.8;
+          source.connect(analyser);
+          analyserRef.current = analyser;
+          freqDataRef.current = new Uint8Array(analyser.frequencyBinCount);
+
+          const tick = () => {
+            const a = analyserRef.current;
+            const data = freqDataRef.current;
+            if (!a || !data) return;
+            a.getByteTimeDomainData(data);
+
+            let peak = 0;
+            for (let i = 0; i < data.length; i++) {
+              const v = Math.abs(data[i] - 128);
+              if (v > peak) peak = v;
+            }
+            const ampNorm = Math.min(1, peak / 50);
+            setWaveLevels((prev) => prev.map((_, i) => {
+              const shape = 1 - Math.abs((i - 14.5) / 14.5) * 0.4;
+              const h = 8 + Math.round(ampNorm * 26 * shape);
+              return h;
+            }));
+            rafRef.current = requestAnimationFrame(tick);
+          };
+          rafRef.current = requestAnimationFrame(tick);
+        }
+      } catch {}
+
       const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
       mediaRecorderRef.current = mr;
       audioChunksRef.current = [];
       setAudioSec(0);
+      setWaveLevels(Array(30).fill(8));
       setAudioState("recording");
       setRec(true);
 
@@ -149,24 +200,38 @@ export default function ChatTab({ active, user, soul }) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
         setRec(false);
 
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop());
           streamRef.current = null;
         }
+        if (audioCtxRef.current) {
+          audioCtxRef.current.close().catch(() => {});
+          audioCtxRef.current = null;
+        }
 
         const shouldDiscard = discardRef.current;
+        const shouldAutoSend = autoSendRef.current;
         discardRef.current = false;
+        autoSendRef.current = false;
 
         if (shouldDiscard) {
           setAudioState("idle");
+          setWaveLevels(Array(30).fill(8));
           return;
         }
 
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        if (blob.size > 0) runTranscribe(blob);
-        else setAudioState("idle");
+        if (blob.size > 0) runTranscribe(blob, { autoSend: shouldAutoSend });
+        else {
+          setAudioState("idle");
+          setWaveLevels(Array(30).fill(8));
+        }
       };
 
       mr.start();
@@ -187,9 +252,10 @@ export default function ChatTab({ active, user, soul }) {
     }
   };
 
-  const stopVoiceRecord = ({ discard = false } = {}) => {
+  const stopVoiceRecord = ({ discard = false, autoSend = false } = {}) => {
     try {
       discardRef.current = discard;
+      autoSendRef.current = autoSend;
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
@@ -198,20 +264,26 @@ export default function ChatTab({ active, user, soul }) {
 
   const cancelVoiceRecord = () => stopVoiceRecord({ discard: true });
 
-  const runTranscribe = async (blob) => {
+  const runTranscribe = async (blob, { autoSend = false } = {}) => {
     try {
       setAudioErr("");
       setAudioState("transcribing");
       const r = await transcribeAudio(blob, { language: "ko", fileName: `chat-${Date.now()}.webm` });
       const t = (r?.text || "").trim();
+      setWaveLevels(Array(30).fill(8));
       if (t) {
-        setInput(t);
-        requestAnimationFrame(() => inputRef.current?.focus());
+        if (autoSend) {
+          await send(t);
+        } else {
+          setInput(t);
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }
       }
       setAudioState("idle");
     } catch (err) {
       setAudioErr(err?.message || "음성 변환에 실패했어요.");
       setAudioState("error");
+      setWaveLevels(Array(30).fill(8));
     }
   };
 
@@ -220,12 +292,6 @@ export default function ChatTab({ active, user, soul }) {
     if (audioState === "recording") stopVoiceRecord();
     else startVoiceRecord();
   };
-
-  const waveBars = Array.from({ length: 30 }, (_, i) => {
-    const seed = ((i * 13 + audioSec * 7) % 100) / 100;
-    const h = 8 + Math.round(seed * 20);
-    return { key: `w-${i}`, height: h, delay: `${(i % 10) * 0.06}s` };
-  });
 
   return (
     <div className={`screen ${active ? "enter" : "exit-down"}`} style={{ bottom: 0, background: "linear-gradient(165deg,#0E0B1E,#09071A)" }}>
@@ -295,17 +361,16 @@ export default function ChatTab({ active, user, soul }) {
             </button>
 
             <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 4, overflow: "hidden", height: 24 }}>
-              {waveBars.map((bar) => (
+              {waveLevels.map((h, i) => (
                 <span
-                  key={bar.key}
+                  key={`wv-${i}`}
                   style={{
                     width: 4,
                     borderRadius: 999,
                     background: "rgba(255,255,255,.7)",
-                    height: `${bar.height}px`,
+                    height: `${h}px`,
                     display: "inline-block",
-                    animation: "pulse 1s infinite",
-                    animationDelay: bar.delay,
+                    transition: "height 80ms linear",
                   }}
                 />
               ))}
@@ -323,7 +388,7 @@ export default function ChatTab({ active, user, soul }) {
                 placeItems: "center",
                 flexShrink: 0,
               }}
-              onClick={() => stopVoiceRecord()}
+              onClick={() => stopVoiceRecord({ autoSend: true })}
               title="녹음 종료"
             >
               <span style={{ color: "var(--night)", fontSize: 20, fontWeight: 900 }}>↑</span>
