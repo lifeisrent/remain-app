@@ -619,18 +619,41 @@ export default function ChatTab({ active, user, soul, onSaveChatArchive }) {
 function ChatMsg({ msg, prevRole, isLast, onQR, selectMode, selected, onToggleSelect, onStartSelect }) {
   const showAv = msg.role === "ai" && prevRole !== "ai";
   const longPressRef = useRef(null);
+  const touchStartRef = useRef({ x: 0, y: 0 });
 
-  const handleLongPressStart = () => {
-    if (selectMode) return;
-    if (msg.role !== "user" && msg.role !== "ai") return;
-    longPressRef.current = setTimeout(() => onStartSelect(msg.id), 400);
-  };
-
-  const handleLongPressEnd = () => {
+  const clearLongPress = () => {
     if (longPressRef.current) {
       clearTimeout(longPressRef.current);
       longPressRef.current = null;
     }
+  };
+
+  const handleLongPressStart = (e) => {
+    if (selectMode) return;
+    if (msg.role !== "user" && msg.role !== "ai") return;
+
+    const t = e?.touches?.[0];
+    if (t) {
+      touchStartRef.current = { x: t.clientX, y: t.clientY };
+    }
+
+    clearLongPress();
+    longPressRef.current = setTimeout(() => onStartSelect(msg.id), 420);
+  };
+
+  const handleTouchMove = (e) => {
+    const t = e?.touches?.[0];
+    if (!t) return;
+    const dx = Math.abs(t.clientX - touchStartRef.current.x);
+    const dy = Math.abs(t.clientY - touchStartRef.current.y);
+    if (dx > 10 || dy > 10) {
+      // 드래그/스크롤 중이면 롱프레스 취소
+      clearLongPress();
+    }
+  };
+
+  const handleLongPressEnd = () => {
+    clearLongPress();
   };
 
   if (msg.role === "system") return (
@@ -654,7 +677,9 @@ function ChatMsg({ msg, prevRole, isLast, onQR, selectMode, selected, onToggleSe
         onMouseUp={handleLongPressEnd}
         onMouseLeave={handleLongPressEnd}
         onTouchStart={handleLongPressStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleLongPressEnd}
+        onTouchCancel={handleLongPressEnd}
       >
         <div className="msg-user"><div className="bbl-user"><div className="bbl-t" style={{ color: "white" }}>{msg.text}</div></div></div>
         {msg.ts && <div style={{ fontFamily: "var(--f-m)", fontSize: 10, color: "var(--w35)", textAlign: "right", paddingRight: 4, marginTop: 3 }}>{msg.ts}</div>}
@@ -675,7 +700,9 @@ function ChatMsg({ msg, prevRole, isLast, onQR, selectMode, selected, onToggleSe
         onMouseUp={handleLongPressEnd}
         onMouseLeave={handleLongPressEnd}
         onTouchStart={handleLongPressStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleLongPressEnd}
+        onTouchCancel={handleLongPressEnd}
       >
         <div className="msg-ai">
           <div style={{ width: 30, height: 30, borderRadius: 9, background: showAv ? "var(--cobalt)" : "transparent", display: "grid", placeItems: "center", flexShrink: 0, marginBottom: 2, alignSelf: "flex-end" }}>
