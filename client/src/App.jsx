@@ -100,7 +100,7 @@ export default function App() {
     };
 
     checkNotify();
-    const timer = window.setInterval(checkNotify, 60000);
+    const timer = window.setInterval(checkNotify, 3000);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") checkNotify();
