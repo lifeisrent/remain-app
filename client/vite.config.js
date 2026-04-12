@@ -15,6 +15,10 @@ export default defineConfig({
         target: API_PROXY_TARGET,
         changeOrigin: true,
       },
+      "/uploads": {
+        target: API_PROXY_TARGET,
+        changeOrigin: true,
+      },
     },
   },
   build: {
