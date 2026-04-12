@@ -56,6 +56,15 @@ npm run dev
 - 서버: http://localhost:3001
 - 헬스체크: http://localhost:3001/api/health
 
+### 온보딩 스킵 테스트 URL
+
+빠르게 홈 화면 진입 테스트가 필요하면 URL에 아래 쿼리를 붙이세요.
+
+- `?testHome=1` 또는 `?skipOnboarding=1`
+- 예: `http://localhost:5173/?testHome=1`
+
+최초 1회 진입 시 테스트용 사용자(`테스트 사용자`)를 local storage에 저장하고 바로 홈 화면으로 들어갑니다.
+
 ### 4. 로컬 네트워크(LAN)에서 접속하기
 
 1. 개발 PC의 IP 확인

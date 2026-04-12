@@ -33,6 +33,9 @@ export default function App() {
   // Load persisted data on mount
   useEffect(() => {
     (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const skipOnboarding = params.get("testHome") === "1" || params.get("skipOnboarding") === "1";
+
       const saved = await Store.get("remain:user");
       if (saved?.name && saved?.soulId) {
         setUser(saved);
@@ -40,9 +43,25 @@ export default function App() {
         const mems = await Promise.all(keys.map((k) => Store.get(k)));
         setMemories(mems.filter(Boolean).sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt)));
         setPhase("main");
-      } else {
-        setPhase("onboarding");
+        return;
       }
+
+      if (skipOnboarding) {
+        const bootstrapUser = {
+          name: "테스트 사용자",
+          purpose: "me",
+          soulId: "orb",
+          notifyTime: "night",
+          notifyAtIso: null,
+          notifyAtMs: null,
+        };
+        setUser(bootstrapUser);
+        await Store.set("remain:user", bootstrapUser);
+        setPhase("main");
+        return;
+      }
+
+      setPhase("onboarding");
     })();
   }, []);
 
