@@ -330,8 +330,8 @@ export default function ChatTab({ active, user, soul }) {
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 9 }}>
-            <div style={{ flex: 1, background: "var(--surface)", border: "1.5px solid var(--rim2)", borderRadius: 22, display: "flex", alignItems: "flex-end", gap: 7, padding: "9px 13px" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 6, width: "100%" }}>
+            <div style={{ flex: 1, minWidth: 0, background: "var(--surface)", border: "1.5px solid var(--rim2)", borderRadius: 22, display: "flex", alignItems: "flex-end", gap: 7, padding: "9px 11px" }}>
               <textarea
                 ref={inputRef}
                 rows={1}
@@ -348,14 +348,14 @@ export default function ChatTab({ active, user, soul }) {
                     send();
                   }
                 }}
-                style={{ flex: 1, background: "transparent", border: "none", outline: "none", resize: "none", fontFamily: "var(--f-b)", fontSize: 14, fontWeight: 500, color: "var(--w95)", lineHeight: 1.5, maxHeight: 96, scrollbarWidth: "none" }}
+                style={{ flex: 1, minWidth: 0, width: "100%", background: "transparent", border: "none", outline: "none", resize: "none", fontFamily: "var(--f-b)", fontSize: 14, fontWeight: 500, color: "var(--w95)", lineHeight: 1.5, maxHeight: 96, scrollbarWidth: "none" }}
               />
             </div>
 
             <button
               style={{
-                width: 44,
-                height: 44,
+                width: 38,
+                height: 38,
                 borderRadius: "50%",
                 background: "var(--w08)",
                 border: "none",
@@ -369,15 +369,15 @@ export default function ChatTab({ active, user, soul }) {
               disabled={loading || audioState === "transcribing"}
               title="음성 입력"
             >
-              <span style={{ color: "white", fontSize: 16 }}>🎙</span>
+              <span style={{ color: "white", fontSize: 14 }}>🎙</span>
             </button>
 
             <button
-              style={{ width: 44, height: 44, borderRadius: "50%", background: input.trim() && !loading ? "white" : "var(--w08)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", display: "grid", placeItems: "center", flexShrink: 0, transition: "all .2s" }}
+              style={{ width: 38, height: 38, borderRadius: "50%", background: input.trim() && !loading ? "white" : "var(--w08)", border: "none", cursor: input.trim() && !loading ? "pointer" : "default", display: "grid", placeItems: "center", flexShrink: 0, transition: "all .2s" }}
               onClick={() => send()}
               disabled={!input.trim() || loading}
             >
-              <span style={{ color: input.trim() && !loading ? "var(--night)" : "white", fontSize: 20, fontWeight: 900 }}>↑</span>
+              <span style={{ color: input.trim() && !loading ? "var(--night)" : "white", fontSize: 17, fontWeight: 900 }}>↑</span>
             </button>
           </div>
         )}
